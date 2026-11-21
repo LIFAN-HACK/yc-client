@@ -392,7 +392,10 @@ jobs:
           sed -i '/dpiAware/d' res/manifest.xml
           pushd ./libs/portable
           pip3 install -r requirements.txt
-          python3 ./generate.py -f ../../rustdesk/ -o . -e ../../rustdesk/rustdesk.exe
+          # YC: the executable carries the app name, so the portable build unpacks into its own
+          # directory and the MSI finds <app-name>.exe. Official RustDesk can stay installed beside it.
+          mv ../../rustdesk/rustdesk.exe ../../rustdesk/YCRemote.exe
+          python3 ./generate.py -f ../../rustdesk/ -o . -e ../../rustdesk/YCRemote.exe
           popd
           mkdir -p ./SignOutput
           mv ./target/release/rustdesk-portable-packer.exe ./SignOutput/rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}.exe
@@ -413,7 +416,7 @@ jobs:
         if: env.UPLOAD_ARTIFACT == 'true'
         run: |
           pushd ./res/msi
-          python preprocess.py --arp -d ../../rustdesk
+          python preprocess.py --arp -d ../../rustdesk --app-name YCRemote
           nuget restore msi.sln
           $msiPlatform = if ('${{ matrix.job.arch }}' -eq 'aarch64') { 'ARM64' } else { 'x64' }
           msbuild msi.sln -p:Configuration=Release -p:Platform=$msiPlatform /p:TargetVersion=Windows10
@@ -439,7 +442,7 @@ jobs:
         # Building the arm64 template on the native arm64 runner makes the ARM
         # package available: the build agents are x64 and cannot run
         # preprocess.py against an ARM exe.
-        if: env.UPLOAD_ARTIFACT == 'true'
+        if: ${{ false }}
         run: |
           git checkout -- res/msi
           cp -r ./rustdesk ./rustdesk-msi-template
@@ -463,7 +466,7 @@ jobs:
           rm -r -fo ./rustdesk-msi-template
 
       - name: Upload unsigned msi template
-        if: env.UPLOAD_ARTIFACT == 'true'
+        if: ${{ false }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: rustdesk-unsigned-msi-template-${{ matrix.job.arch }}
@@ -717,7 +720,7 @@ jobs:
           CREATE_DMG="$(command -v create-dmg)"
           CREATE_DMG="$(readlink -f "$CREATE_DMG")"
           sed -i -e 's/MAXIMUM_UNMOUNTING_ATTEMPTS=3/MAXIMUM_UNMOUNTING_ATTEMPTS=7/' "$CREATE_DMG"
-          create-dmg --icon "RustDesk.app" 200 190 --hide-extension "RustDesk.app" --window-size 800 400 --app-drop-link 600 185 rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}.dmg ./flutter/build/macos/Build/Products/Release/RustDesk.app
+          create-dmg --icon "YCRemote.app" 200 190 --hide-extension "YCRemote.app" --window-size 800 400 --app-drop-link 600 185 rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}.dmg ./flutter/build/macos/Build/Products/Release/YCRemote.app
 
       - name: Upload unsigned macOS app
         if: env.UPLOAD_ARTIFACT == 'true'
@@ -740,17 +743,17 @@ jobs:
           rm -rf *.dmg || true
           # the identity secret carries its own shell quoting, so expand it inline like the dmg codesign below
           bash ./.github/scripts/sign-macos-app.sh \
-            ./flutter/build/macos/Build/Products/Release/RustDesk.app \
+            ./flutter/build/macos/Build/Products/Release/YCRemote.app \
             ${{ secrets.MACOS_CODESIGN_IDENTITY }} \
             ./flutter/macos/Runner/Release.entitlements
           if [ "$PUBLISH_UPDATE_METADATA" = "true" ]; then
-            reported_version="$(./flutter/build/macos/Build/Products/Release/RustDesk.app/Contents/MacOS/RustDesk --version)"
+            reported_version="$(./flutter/build/macos/Build/Products/Release/YCRemote.app/Contents/MacOS/YCRemote --version)"
             if [ "$reported_version" != "$VERSION" ]; then
               echo "::error::RustDesk reports version '$reported_version', expected '$VERSION'"
               exit 1
             fi
           fi
-          create-dmg --icon "RustDesk.app" 200 190 --hide-extension "RustDesk.app" --window-size 800 400 --app-drop-link 600 185 rustdesk-${{ env.VERSION }}.dmg ./flutter/build/macos/Build/Products/Release/RustDesk.app
+          create-dmg --icon "YCRemote.app" 200 190 --hide-extension "YCRemote.app" --window-size 800 400 --app-drop-link 600 185 rustdesk-${{ env.VERSION }}.dmg ./flutter/build/macos/Build/Products/Release/YCRemote.app
           codesign --force --options runtime -s ${{ secrets.MACOS_CODESIGN_IDENTITY }} --deep --strict rustdesk-${{ env.VERSION }}.dmg -vvv
           # notarize the rustdesk-${{ env.VERSION }}.dmg
           rcodesign notary-submit --api-key-path ${{ github.workspace }}/rustdesk.json  --staple rustdesk-${{ env.VERSION }}.dmg

@@ -1227,6 +1227,9 @@ pub fn get_app_name() -> String {
     hbb_common::config::APP_NAME.read().unwrap().clone()
 }
 
+/// Name shown in translated UI texts. `APP_NAME` stays ASCII because it names paths, services and the URL scheme.
+pub const YC_DISPLAY_NAME: &str = "YC 远程";
+
 #[inline]
 pub fn is_rustdesk() -> bool {
     hbb_common::config::APP_NAME.read().unwrap().eq("RustDesk")

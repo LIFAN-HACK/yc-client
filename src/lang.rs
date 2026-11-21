@@ -271,7 +271,8 @@ pub fn translate_locale(name: String, locale: &str) -> String {
                 && !name.starts_with("upgrade_rustdesk_server_pro")
                 && name != "powered_by_me"
             {
-                let app_name = crate::get_app_name();
+                // YC: texts show the product's display name; the ASCII app name stays for paths and services.
+                let app_name = crate::YC_DISPLAY_NAME.to_owned();
                 if !app_name.contains("RustDesk") {
                     s = s.replace("RustDesk", &app_name);
                 } else {
