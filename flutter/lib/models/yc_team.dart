@@ -63,8 +63,8 @@ class YcTeam {
       await bind.mainSetOption(
           key: kOptionVerificationMethod, value: 'use-permanent-password');
       await bind.mainSetOption(key: kOptionApproveMode, value: 'password');
-      final res = await _post('/api/yc/enroll',
-          {'id': await bind.mainGetMyId(), 'secret': secret});
+      final res = await _post(
+          '/api/yc/enroll', {'id': await bind.mainGetMyId(), 'secret': secret});
       await bind.mainSetLocalOption(
           key: _kEnrolled, value: res == null ? '' : 'Y');
     } catch (e) {
@@ -155,6 +155,22 @@ class YcTeam {
     }
   }
 
+  /// Take a device off the account. Returns an error message, or null on success.
+  static Future<String?> remove(String id) async {
+    try {
+      final api = await bind.mainGetApiServer();
+      final headers = getHttpHeaders();
+      headers['Content-Type'] = 'application/json';
+      final resp = await http
+          .post(Uri.parse('$api/api/yc/remove'),
+              headers: headers, body: jsonEncode({'id': id}))
+          .timeout(const Duration(seconds: 8));
+      return resp.statusCode == 200 ? null : '移除失败（${resp.statusCode}）';
+    } catch (e) {
+      return '移除失败，请检查网络';
+    }
+  }
+
   /// Called on sign-out: rotate the local secret so the escrowed one stops working.
   static Future<void> leave() async {
     if (!_canBeControlled) return;
@@ -177,6 +193,9 @@ class YcDevice {
   final String owner;
   final bool online;
 
+  /// Unix seconds of the last heartbeat, 0 when unknown.
+  final int lastSeen;
+
   /// The device has escrowed its connection secret, so connecting needs no password.
   final bool ready;
 
@@ -187,6 +206,7 @@ class YcDevice {
     required this.group,
     required this.owner,
     required this.online,
+    this.lastSeen = 0,
     required this.ready,
   });
 
@@ -197,6 +217,7 @@ class YcDevice {
         group: '${j['group'] ?? ''}',
         owner: '${j['owner'] ?? ''}',
         online: j['online'] == true,
+        lastSeen: j['last_seen'] is int ? j['last_seen'] as int : 0,
         ready: j['ready'] == true,
       );
 }

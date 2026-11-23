@@ -55,6 +55,17 @@ class _C {
       colors: [Color(0xFFFFFFFF), Color(0xFFD9DCE4)]);
 }
 
+String _lastSeen(int seconds) {
+  final t = DateTime.fromMillisecondsSinceEpoch(seconds * 1000);
+  final now = DateTime.now();
+  final hm =
+      '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+  if (t.year == now.year && t.month == now.month && t.day == now.day) {
+    return '今天 $hm';
+  }
+  return '${t.month} 月 ${t.day} 日 $hm';
+}
+
 IconData _osIcon(String os) {
   final v = os.toLowerCase();
   if (v.contains('android')) return Icons.phone_android_rounded;
@@ -211,6 +222,44 @@ class _YcHomeState extends State<YcHome> {
     await _refresh();
   }
 
+  Future<void> _remove(YcDevice d) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => Theme(
+        data: MyTheme.darkTheme,
+        child: AlertDialog(
+          backgroundColor: _C.panel,
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+              side: const BorderSide(color: _C.line)),
+          title: const Text('从账号移除',
+              style: TextStyle(
+                  fontSize: 16, fontWeight: FontWeight.w700, color: _C.text)),
+          content: SizedBox(
+            width: 320,
+            child: Text('“${d.name}”将从设备列表消失，那台电脑上的 OpenDesk 需要重新登录才能再加入。',
+                style:
+                    const TextStyle(fontSize: 13, color: _C.sub, height: 1.6)),
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: const Text('取消', style: TextStyle(color: _C.sub))),
+            TextButton(
+                onPressed: () => Navigator.of(ctx).pop(true),
+                child: const Text('移除',
+                    style: TextStyle(
+                        color: _C.danger, fontWeight: FontWeight.w700))),
+          ],
+        ),
+      ),
+    );
+    if (ok != true) return;
+    final err = await YcTeam.remove(d.id);
+    showToast(err ?? '已移除');
+    await _refresh();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Theme(
@@ -246,7 +295,8 @@ class _YcHomeState extends State<YcHome> {
                     : _DevicePage(
                         device: d,
                         isMe: d.id == _myId,
-                        onRename: () => _rename(d)),
+                        onRename: () => _rename(d),
+                        onRemove: () => _remove(d)),
               ),
             ],
           ),
@@ -672,8 +722,12 @@ class _DevicePage extends StatelessWidget {
   final YcDevice device;
   final bool isMe;
   final VoidCallback onRename;
+  final VoidCallback onRemove;
   const _DevicePage(
-      {required this.device, required this.isMe, required this.onRename});
+      {required this.device,
+      required this.isMe,
+      required this.onRename,
+      required this.onRemove});
 
   void _copy() {
     Clipboard.setData(ClipboardData(text: device.id));
@@ -688,7 +742,9 @@ class _DevicePage extends StatelessWidget {
     if (isMe) {
       hint = d.ready ? '这是本机。登录同一账号的其他设备可以直接进入它的桌面。' : '正在把本机接入账号…';
     } else if (!d.online) {
-      hint = '设备离线，上线后即可进入。';
+      hint = d.lastSeen > 0
+          ? '上线后即可进入 · 最近在线：${_lastSeen(d.lastSeen)}'
+          : '设备离线，上线后即可进入。';
     } else if (!d.ready) {
       hint = '该设备尚未完成接入，进入时需要输入它的连接密码。';
     } else {
@@ -739,10 +795,15 @@ class _DevicePage extends StatelessWidget {
                 const Spacer(),
                 _Menu(
                   icon: Icons.more_horiz_rounded,
-                  items: const {'rename': '重命名', 'copy': '复制设备码'},
+                  items: {
+                    'rename': '重命名',
+                    'copy': '复制设备码',
+                    if (!isMe) 'remove': '从账号移除',
+                  },
                   onSelected: (v) {
                     if (v == 'rename') onRename();
                     if (v == 'copy') _copy();
+                    if (v == 'remove') onRemove();
                   },
                 ),
               ]),
