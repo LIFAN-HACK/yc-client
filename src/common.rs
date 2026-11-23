@@ -952,6 +952,20 @@ pub fn hostname() -> String {
         if name.ends_with(".local") {
             name = name.trim_end_matches(".local").to_owned();
         }
+        // YC: a Mac without a DNS name reports its address here; the name set in System Settings
+        // is what its owner knows it by.
+        #[cfg(target_os = "macos")]
+        if name == "localhost" || name.parse::<std::net::IpAddr>().is_ok() {
+            if let Ok(out) = std::process::Command::new("scutil")
+                .args(["--get", "ComputerName"])
+                .output()
+            {
+                let computer_name = String::from_utf8_lossy(&out.stdout).trim().to_owned();
+                if !computer_name.is_empty() {
+                    name = computer_name;
+                }
+            }
+        }
         name
     }
     #[cfg(any(target_os = "android", target_os = "ios"))]
@@ -1228,7 +1242,7 @@ pub fn get_app_name() -> String {
 }
 
 /// Name shown in translated UI texts. `APP_NAME` stays ASCII because it names paths, services and the URL scheme.
-pub const YC_DISPLAY_NAME: &str = "YC 远程";
+pub const YC_DISPLAY_NAME: &str = "OpenDesk";
 
 #[inline]
 pub fn is_rustdesk() -> bool {

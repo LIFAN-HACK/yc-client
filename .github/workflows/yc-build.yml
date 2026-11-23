@@ -394,8 +394,8 @@ jobs:
           pip3 install -r requirements.txt
           # YC: the executable carries the app name, so the portable build unpacks into its own
           # directory and the MSI finds <app-name>.exe. Official RustDesk can stay installed beside it.
-          mv ../../rustdesk/rustdesk.exe ../../rustdesk/YCRemote.exe
-          python3 ./generate.py -f ../../rustdesk/ -o . -e ../../rustdesk/YCRemote.exe
+          mv ../../rustdesk/rustdesk.exe ../../rustdesk/OpenDesk.exe
+          python3 ./generate.py -f ../../rustdesk/ -o . -e ../../rustdesk/OpenDesk.exe
           popd
           mkdir -p ./SignOutput
           mv ./target/release/rustdesk-portable-packer.exe ./SignOutput/rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}.exe
@@ -416,7 +416,7 @@ jobs:
         if: env.UPLOAD_ARTIFACT == 'true'
         run: |
           pushd ./res/msi
-          python preprocess.py --arp -d ../../rustdesk --app-name YCRemote
+          python preprocess.py --arp -d ../../rustdesk --app-name OpenDesk
           nuget restore msi.sln
           $msiPlatform = if ('${{ matrix.job.arch }}' -eq 'aarch64') { 'ARM64' } else { 'x64' }
           msbuild msi.sln -p:Configuration=Release -p:Platform=$msiPlatform /p:TargetVersion=Windows10
@@ -723,9 +723,9 @@ jobs:
           # YC: there is no Developer ID here. Xcode leaves the app ad-hoc signed with the hardened
           # runtime, and macOS then refuses to load the bundled frameworks ("different Team IDs"),
           # so the app never starts. Re-sign everything ad hoc without the runtime flag.
-          codesign --force --deep -s - ./flutter/build/macos/Build/Products/Release/YCRemote.app
-          codesign --verify --deep --strict ./flutter/build/macos/Build/Products/Release/YCRemote.app
-          create-dmg --icon "YCRemote.app" 200 190 --hide-extension "YCRemote.app" --window-size 800 400 --app-drop-link 600 185 rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}.dmg ./flutter/build/macos/Build/Products/Release/YCRemote.app
+          codesign --force --deep -s - ./flutter/build/macos/Build/Products/Release/OpenDesk.app
+          codesign --verify --deep --strict ./flutter/build/macos/Build/Products/Release/OpenDesk.app
+          create-dmg --icon "OpenDesk.app" 200 190 --hide-extension "OpenDesk.app" --window-size 800 400 --app-drop-link 600 185 rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}.dmg ./flutter/build/macos/Build/Products/Release/OpenDesk.app
 
       - name: Upload unsigned macOS app
         if: env.UPLOAD_ARTIFACT == 'true'
@@ -748,17 +748,17 @@ jobs:
           rm -rf *.dmg || true
           # the identity secret carries its own shell quoting, so expand it inline like the dmg codesign below
           bash ./.github/scripts/sign-macos-app.sh \
-            ./flutter/build/macos/Build/Products/Release/YCRemote.app \
+            ./flutter/build/macos/Build/Products/Release/OpenDesk.app \
             ${{ secrets.MACOS_CODESIGN_IDENTITY }} \
             ./flutter/macos/Runner/Release.entitlements
           if [ "$PUBLISH_UPDATE_METADATA" = "true" ]; then
-            reported_version="$(./flutter/build/macos/Build/Products/Release/YCRemote.app/Contents/MacOS/YCRemote --version)"
+            reported_version="$(./flutter/build/macos/Build/Products/Release/OpenDesk.app/Contents/MacOS/OpenDesk --version)"
             if [ "$reported_version" != "$VERSION" ]; then
               echo "::error::RustDesk reports version '$reported_version', expected '$VERSION'"
               exit 1
             fi
           fi
-          create-dmg --icon "YCRemote.app" 200 190 --hide-extension "YCRemote.app" --window-size 800 400 --app-drop-link 600 185 rustdesk-${{ env.VERSION }}.dmg ./flutter/build/macos/Build/Products/Release/YCRemote.app
+          create-dmg --icon "OpenDesk.app" 200 190 --hide-extension "OpenDesk.app" --window-size 800 400 --app-drop-link 600 185 rustdesk-${{ env.VERSION }}.dmg ./flutter/build/macos/Build/Products/Release/OpenDesk.app
           codesign --force --options runtime -s ${{ secrets.MACOS_CODESIGN_IDENTITY }} --deep --strict rustdesk-${{ env.VERSION }}.dmg -vvv
           # notarize the rustdesk-${{ env.VERSION }}.dmg
           rcodesign notary-submit --api-key-path ${{ github.workspace }}/rustdesk.json  --staple rustdesk-${{ env.VERSION }}.dmg

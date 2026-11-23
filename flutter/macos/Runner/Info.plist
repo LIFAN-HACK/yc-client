@@ -26,10 +26,10 @@
 			<key>CFBundleURLIconFile</key>
 			<string></string>
 			<key>CFBundleURLName</key>
-			<string>com.ycremote.client</string>
+			<string>com.opendesk.client</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>ycremote</string>
+				<string>opendesk</string>
 			</array>
 		</dict>
 	</array>

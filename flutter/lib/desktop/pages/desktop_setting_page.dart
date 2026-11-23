@@ -2595,7 +2595,7 @@ class _AboutState extends State<_About> {
       final scrollController = ScrollController();
       return SingleChildScrollView(
         controller: scrollController,
-        child: _Card(title: '关于 YC 远程', children: [
+        child: _Card(title: '关于 OpenDesk', children: [
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

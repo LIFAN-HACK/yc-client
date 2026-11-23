@@ -138,6 +138,23 @@ class YcTeam {
         .toList();
   }
 
+  /// Give a device of the account a name of our own; empty restores its hostname.
+  /// Returns an error message, or null on success.
+  static Future<String?> rename(String id, String name) async {
+    try {
+      final api = await bind.mainGetApiServer();
+      final headers = getHttpHeaders();
+      headers['Content-Type'] = 'application/json';
+      final resp = await http
+          .post(Uri.parse('$api/api/yc/rename'),
+              headers: headers, body: jsonEncode({'id': id, 'name': name}))
+          .timeout(const Duration(seconds: 8));
+      return resp.statusCode == 200 ? null : '改名失败（${resp.statusCode}）';
+    } catch (e) {
+      return '改名失败，请检查网络';
+    }
+  }
+
   /// Called on sign-out: rotate the local secret so the escrowed one stops working.
   static Future<void> leave() async {
     if (!_canBeControlled) return;

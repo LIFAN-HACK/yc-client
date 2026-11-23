@@ -5,10 +5,10 @@
 // 'flutter create' template.
 
 // The application's name. By default this is also the title of the Flutter window.
-PRODUCT_NAME = YCRemote
+PRODUCT_NAME = OpenDesk
 
 // The application's bundle identifier
-PRODUCT_BUNDLE_IDENTIFIER = com.ycremote.client
+PRODUCT_BUNDLE_IDENTIFIER = com.opendesk.client
 
 // The copyright displayed in application information
 PRODUCT_COPYRIGHT = Based on RustDesk. Copyright © 2026 Purslane Tech Pte. Ltd. AGPL-3.0.
