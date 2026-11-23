@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_hbb/common.dart';
 import 'package:flutter_hbb/consts.dart';
 
+import '../common/hbbs/hbbs.dart';
 import '../utils/http_service.dart' as http;
 import 'platform_model.dart';
 
@@ -91,6 +92,52 @@ class YcTeam {
     }
   }
 
+  /// Signs in with a team account and enrolls this device. Returns null on success, otherwise
+  /// a message to show next to the form.
+  static Future<String?> signIn(String username, String password) async {
+    try {
+      final resp = await gFFI.userModel.login(LoginRequest(
+          username: username,
+          password: password,
+          id: await bind.mainGetMyId(),
+          uuid: await bind.mainGetUuid(),
+          autoLogin: true,
+          type: HttpType.kAuthReqTypeAccount));
+      final token = resp.access_token;
+      if (resp.type != HttpType.kAuthResTypeToken || token == null) {
+        return '这个账号需要额外验证，请联系管理员';
+      }
+      await bind.mainSetLocalOption(key: 'access_token', value: token);
+      await bind.mainSetLocalOption(
+          key: 'user_info', value: jsonEncode(resp.user ?? {}));
+      await enroll();
+      return null;
+    } on RequestException catch (e) {
+      return e.cause.isEmpty ? '登录失败（${e.statusCode}）' : translate(e.cause);
+    } catch (e) {
+      debugPrint('yc: sign-in failed: $e');
+      return '连不上服务器，请检查网络后重试';
+    }
+  }
+
+  /// The team's computers. Throws when the list cannot be fetched.
+  static Future<List<YcDevice>> devices() async {
+    final api = await bind.mainGetApiServer();
+    final resp = await http
+        .get(Uri.parse('$api/api/yc/devices'), headers: getHttpHeaders())
+        .timeout(const Duration(seconds: 8));
+    if (resp.statusCode != 200) {
+      throw RequestException(resp.statusCode, 'HTTP ${resp.statusCode}');
+    }
+    final decoded = jsonDecode(utf8.decode(resp.bodyBytes));
+    final list = decoded is Map ? decoded['devices'] : null;
+    if (list is! List) return [];
+    return list
+        .whereType<Map>()
+        .map((m) => YcDevice.fromJson(Map<String, dynamic>.from(m)))
+        .toList();
+  }
+
   /// Called on sign-out: rotate the local secret so the escrowed one stops working.
   static Future<void> leave() async {
     if (!_canBeControlled) return;
@@ -102,4 +149,37 @@ class YcTeam {
       debugPrint('yc: leave failed: $e');
     }
   }
+}
+
+/// One computer of the team, as the account service reports it.
+class YcDevice {
+  final String id;
+  final String name;
+  final String os;
+  final String group;
+  final String owner;
+  final bool online;
+
+  /// The device has escrowed its connection secret, so connecting needs no password.
+  final bool ready;
+
+  const YcDevice({
+    required this.id,
+    required this.name,
+    required this.os,
+    required this.group,
+    required this.owner,
+    required this.online,
+    required this.ready,
+  });
+
+  factory YcDevice.fromJson(Map<String, dynamic> j) => YcDevice(
+        id: '${j['id'] ?? ''}',
+        name: '${j['name'] ?? j['id'] ?? ''}',
+        os: '${j['os'] ?? ''}',
+        group: '${j['group'] ?? ''}',
+        owner: '${j['owner'] ?? ''}',
+        online: j['online'] == true,
+        ready: j['ready'] == true,
+      );
 }
