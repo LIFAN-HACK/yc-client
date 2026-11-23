@@ -63,8 +63,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
     return _buildBlock(
         child: ChangeNotifierProvider.value(
       value: gFFI.serverModel,
-      child: YcHome(
-          helpCards: Obx(() => buildHelpCards(stateGlobal.updateUrl.value))),
+      child: YcHome(notice: ycNotice()),
     ));
   }
 
@@ -423,6 +422,56 @@ class _DesktopHomePageState extends State<DesktopHomePage>
         ],
       ),
     );
+  }
+
+  YcNotice? ycNotice() {
+    if (systemError.isNotEmpty) {
+      return YcNotice(systemError);
+    }
+    if (isWindows && !bind.isDisableInstallation()) {
+      if (!bind.mainIsInstalled()) {
+        return YcNotice('安装后，这台电脑才能在开机后随时被远程控制。', action: '安装',
+            onAction: () async {
+          await rustDeskWinManager.closeAllSubWindows();
+          bind.mainGotoInstall();
+        });
+      } else if (bind.mainIsInstalledLowerVersion()) {
+        return YcNotice('已安装的版本较旧。', action: '升级', onAction: () async {
+          await rustDeskWinManager.closeAllSubWindows();
+          bind.mainUpdateMe();
+        });
+      }
+    } else if (isMacOS) {
+      if (!bind.mainIsCanScreenRecording(prompt: false)) {
+        return YcNotice('需要“屏幕录制”权限，别的设备才能看到这台电脑的画面。', action: '去开启',
+            onAction: () {
+          bind.mainIsCanScreenRecording(prompt: true);
+          launchUrl(Uri.parse(
+              'x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture'));
+          watchIsCanScreenRecording = true;
+        });
+      } else if (!bind.mainIsProcessTrusted(prompt: false)) {
+        return YcNotice('需要“辅助功能”权限，别的设备才能操作这台电脑的鼠标和键盘。',
+            action: '去开启', onAction: () {
+          bind.mainIsProcessTrusted(prompt: true);
+          watchIsProcessTrust = true;
+        });
+      } else if (!bind.mainIsCanInputMonitoring(prompt: false)) {
+        return YcNotice('需要“输入监控”权限，控制别的设备时快捷键才能完整传过去。', action: '去开启',
+            onAction: () {
+          bind.mainIsCanInputMonitoring(prompt: true);
+          watchIsInputMonitoring = true;
+        });
+      } else if (!svcStopped.value &&
+          bind.mainIsInstalled() &&
+          !bind.mainIsInstalledDaemon(prompt: false)) {
+        return YcNotice('安装后台服务后，这台电脑在登录界面也能被远程控制。', action: '安装',
+            onAction: () {
+          bind.mainIsInstalledDaemon(prompt: true);
+        });
+      }
+    }
+    return null;
   }
 
   Widget buildHelpCards(String updateUrl) {
