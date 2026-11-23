@@ -849,6 +849,8 @@ class _RemoteToolbarState extends State<RemoteToolbar> {
       _ChatMenu(id: widget.id, ffi: widget.ffi),
       if (!isWeb) _VoiceCallMenu(id: widget.id, ffi: widget.ffi),
       if (!isWeb) _RecordMenu(),
+      Divider(),
+      _CloseMenu(id: widget.id, ffi: widget.ffi),
     ];
     toolbarItems.add(_ControlCenter(ffi: widget.ffi, children: centerItems));
     toolbarItems.add(_CloseMenu(id: widget.id, ffi: widget.ffi));
@@ -1829,7 +1831,8 @@ class _DisplayMenuState extends State<_DisplayMenu> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          group('画质', Icons.hd_outlined, (_) => [imageQuality(), codec()]),
+          group('画质', Icons.hd_outlined,
+              (_) => [qualityPresets(), Divider(), codec()]),
           group(
               '窗口',
               Icons.aspect_ratio_rounded,
@@ -1873,6 +1876,90 @@ class _DisplayMenuState extends State<_DisplayMenu> {
       hoverColor: _ToolbarTheme.hoverBlueColor,
       menuChildrenGetter: menuChildrenGetter,
     );
+  }
+
+  /// YC: named quality levels and frame rates in place of the stock quality radios and the
+  /// custom dialog. The levels map onto the core's own settings; none promises a bitrate.
+  qualityPresets() {
+    final sessionId = ffi.sessionId;
+    return futureBuilder(future: () async {
+      final quality = await bind.sessionGetImageQuality(sessionId: sessionId);
+      final custom =
+          await bind.sessionGetCustomImageQuality(sessionId: sessionId);
+      final fps =
+          await bind.sessionGetOption(sessionId: sessionId, arg: 'custom-fps');
+      return [
+        quality ?? '',
+        custom != null && custom.isNotEmpty ? custom[0] : 0,
+        int.tryParse(fps ?? '') ?? 30,
+      ];
+    }(), hasData: (data) {
+      final v = data as List;
+      final String quality = v[0];
+      final int custom = v[1];
+      final int fps = v[2];
+      String current;
+      if (quality == kRemoteImageQualityBest) {
+        current = 'best';
+      } else if (quality == kRemoteImageQualityLow) {
+        current = 'low';
+      } else if (quality == kRemoteImageQualityCustom) {
+        current = custom >= 70 ? 'high' : 'mid';
+      } else {
+        current = 'auto';
+      }
+      setLevel(String? level) async {
+        switch (level) {
+          case 'best':
+            await bind.sessionSetImageQuality(
+                sessionId: sessionId, value: kRemoteImageQualityBest);
+            break;
+          case 'high':
+          case 'mid':
+            await bind.sessionSetImageQuality(
+                sessionId: sessionId, value: kRemoteImageQualityCustom);
+            await bind.sessionSetCustomImageQuality(
+                sessionId: sessionId, value: level == 'high' ? 80 : 50);
+            break;
+          case 'low':
+            await bind.sessionSetImageQuality(
+                sessionId: sessionId, value: kRemoteImageQualityLow);
+            break;
+          default:
+            await bind.sessionSetImageQuality(
+                sessionId: sessionId, value: kRemoteImageQualityBalanced);
+        }
+      }
+
+      level(String value, String label) => RdoMenuButton<String>(
+          value: value,
+          groupValue: current,
+          onChanged: setLevel,
+          child: Text(label),
+          ffi: ffi);
+      rate(int value) => RdoMenuButton<int>(
+          value: value,
+          groupValue: fps,
+          onChanged: (f) {
+            if (f != null) {
+              bind.sessionSetCustomFps(sessionId: sessionId, fps: f);
+            }
+          },
+          child: Text('$value 帧'),
+          ffi: ffi);
+      return Column(children: [
+        level('auto', '自动'),
+        level('best', '原画'),
+        level('high', '超清'),
+        level('mid', '高清'),
+        level('low', '流畅'),
+        Divider(),
+        rate(120),
+        rate(90),
+        rate(60),
+        rate(30),
+      ]);
+    });
   }
 
   viewStyle({required RxInt customPercent}) {
@@ -3052,6 +3139,49 @@ class _RecordMenu extends StatelessWidget {
   }
 }
 
+const _kSkipExitConfirm = 'yc-skip-exit-confirm';
+
+/// YC: leaving a session asks first, as an accidental click on the red button ends the work.
+void _confirmExit(String id, FFI ffi) {
+  var skip = false;
+  ffi.dialogManager.show((setState, close, context) {
+    leave() {
+      if (skip) {
+        bind.mainSetLocalOption(key: _kSkipExitConfirm, value: 'Y');
+      }
+      close();
+      closeConnection(id: id);
+    }
+
+    return CustomAlertDialog(
+      title: const Text('退出远程连接'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('确定要退出这次远程连接吗？'),
+          const SizedBox(height: 12),
+          InkWell(
+            onTap: () => setState(() => skip = !skip),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              Checkbox(
+                  value: skip,
+                  onChanged: (v) => setState(() => skip = v ?? false)),
+              const Text('不再提示'),
+            ]),
+          ),
+        ],
+      ),
+      actions: [
+        dialogButton('取消', onPressed: close, isOutline: true),
+        dialogButton('确定', onPressed: leave),
+      ],
+      onSubmit: leave,
+      onCancel: close,
+    );
+  });
+}
+
 class _CloseMenu extends StatelessWidget {
   final String id;
   final FFI ffi;
@@ -3062,12 +3192,16 @@ class _CloseMenu extends StatelessWidget {
   Widget build(BuildContext context) {
     return _IconMenuButton(
       assetName: 'assets/close.svg',
-      tooltip: 'Close',
+      tooltip: _InControlCenter.of(context) ? '退出远控' : 'Close',
       onPressed: () async {
         if (await showConnEndAuditDialogCloseCanceled(ffi: ffi)) {
           return;
         }
-        closeConnection(id: id);
+        if (bind.mainGetLocalOption(key: _kSkipExitConfirm) == 'Y') {
+          closeConnection(id: id);
+          return;
+        }
+        _confirmExit(id, ffi);
       },
       color: _ToolbarTheme.redColor,
       hoverColor: _ToolbarTheme.hoverRedColor,
