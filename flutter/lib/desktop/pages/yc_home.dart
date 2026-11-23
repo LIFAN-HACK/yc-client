@@ -4,7 +4,6 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_hbb/common.dart';
-import 'package:flutter_hbb/common/formatter/id_formatter.dart';
 import 'package:flutter_hbb/desktop/pages/desktop_tab_page.dart';
 import 'package:flutter_hbb/models/platform_model.dart';
 import 'package:flutter_hbb/models/state_model.dart';
@@ -36,9 +35,10 @@ class YcHome extends StatefulWidget {
 
 class _C {
   static const bg = Color(0xFFFFFFFF);
-  static const side = Color(0xFFF5F6F8);
+  static const side = Color(0xFFF3F4F6);
   static const card = Color(0xFFF7F8FA);
   static const hover = Color(0xFFECEEF2);
+  static const sel = Color(0xFFE2E4E9);
   static const line = Color(0xFFE9EBEF);
   static const text = Color(0xFF1D2129);
   static const sub = Color(0xFF4E5969);
@@ -73,6 +73,8 @@ class _YcHomeState extends State<YcHome> {
   bool _loaded = false;
   bool _failed = false;
   String _query = '';
+  bool _collapsed = false;
+  Timer? _statusTimer;
   Timer? _timer;
   Worker? _userWatch;
 
@@ -85,10 +87,25 @@ class _YcHomeState extends State<YcHome> {
     _userWatch = ever(gFFI.userModel.userName, (_) => _refresh());
     _timer = Timer.periodic(const Duration(seconds: 10), (_) => _refresh());
     _refresh();
+    _statusTimer = periodic_immediate(const Duration(seconds: 1), _pollStatus);
+  }
+
+  Future<void> _pollStatus() async {
+    try {
+      final status =
+          jsonDecode(await bind.mainGetConnectStatus()) as Map<String, dynamic>;
+      final n = status['status_num'];
+      stateGlobal.svcStatus.value = n == 0
+          ? SvcStatus.connecting
+          : (n == 1 ? SvcStatus.ready : SvcStatus.notReady);
+      final count = status['video_conn_count'];
+      if (count is int) stateGlobal.videoConnCount.value = count;
+    } catch (_) {}
   }
 
   @override
   void dispose() {
+    _statusTimer?.cancel();
     _timer?.cancel();
     _userWatch?.dispose();
     super.dispose();
@@ -153,27 +170,137 @@ class _YcHomeState extends State<YcHome> {
 
   Widget _signedIn(BuildContext context) {
     final selected = _devices.where((d) => d.id == _selected).toList();
+    final d = selected.isEmpty ? null : selected.first;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        SizedBox(width: 248, child: _sidebar(context)),
+        SizedBox(width: 240, child: _sidebar(context)),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              _topBar(d),
               if (widget.notice != null) _NoticeStrip(widget.notice!),
               Expanded(
-                child: selected.isEmpty
+                child: d == null
                     ? _empty()
-                    : _DevicePage(
-                        device: selected.first,
-                        isMe: selected.first.id == _myId),
+                    : _DevicePage(device: d, isMe: d.id == _myId),
               ),
-              const _StatusBar(),
             ],
           ),
         ),
       ],
+    );
+  }
+
+  Widget _topBar(YcDevice? d) {
+    return Container(
+      height: 52,
+      padding: const EdgeInsets.only(left: 36, right: 14),
+      decoration: const BoxDecoration(
+          border: Border(bottom: BorderSide(color: _C.line))),
+      child: Row(children: [
+        if (d != null) ...[
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+                color: d.online ? _C.text : _C.off,
+                borderRadius: BorderRadius.circular(20)),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              Container(
+                width: 6,
+                height: 6,
+                decoration: BoxDecoration(
+                    color: d.online ? const Color(0xFF3DDC84) : Colors.white,
+                    shape: BoxShape.circle),
+              ),
+              const SizedBox(width: 5),
+              Text(d.online ? '在线' : '离线',
+                  style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white)),
+            ]),
+          ),
+          const SizedBox(width: 12),
+          Flexible(
+            child: Text(d.name,
+                overflow: TextOverflow.ellipsis,
+                style:
+                    const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+          ),
+          _menu(
+            icon: Icons.more_vert_rounded,
+            items: const {'copy': '复制设备码'},
+            onSelected: (_) {
+              Clipboard.setData(ClipboardData(text: d.id));
+              showToast('已复制');
+            },
+          ),
+        ],
+        const Spacer(),
+        Container(
+          height: 34,
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          decoration: BoxDecoration(
+              color: _C.side, borderRadius: BorderRadius.circular(17)),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            _IconBtn(icon: Icons.refresh_rounded, tip: '刷新', onTap: _refresh),
+            _menu(
+              icon: Icons.account_circle_outlined,
+              items: {
+                'name': gFFI.userModel.displayNameOrUserName,
+                'logout': '退出登录'
+              },
+              disabled: const {'name'},
+              onSelected: (v) {
+                if (v == 'logout') gFFI.userModel.logOut();
+              },
+            ),
+            _menu(
+              icon: Icons.menu_rounded,
+              items: const {'settings': '设置'},
+              onSelected: (v) {
+                if (v == 'settings') DesktopTabPage.onAddSetting();
+              },
+            ),
+          ]),
+        ),
+      ]),
+    );
+  }
+
+  Widget _menu(
+      {required IconData icon,
+      required Map<String, String> items,
+      Set<String> disabled = const {},
+      required void Function(String) onSelected}) {
+    return SizedBox(
+      width: 30,
+      height: 30,
+      child: PopupMenuButton<String>(
+        tooltip: '',
+        padding: EdgeInsets.zero,
+        color: _C.bg,
+        elevation: 6,
+        offset: const Offset(0, 34),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+            side: const BorderSide(color: _C.line)),
+        icon: Icon(icon, size: 17, color: _C.sub),
+        onSelected: onSelected,
+        itemBuilder: (_) => [
+          for (final e in items.entries)
+            PopupMenuItem(
+                value: e.key,
+                height: 36,
+                enabled: !disabled.contains(e.key),
+                child: Text(e.value,
+                    style: TextStyle(
+                        fontSize: 13,
+                        color: disabled.contains(e.key) ? _C.dim : _C.text))),
+        ],
+      ),
     );
   }
 
@@ -193,22 +320,78 @@ class _YcHomeState extends State<YcHome> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(18, 18, 12, 14),
-            child: Row(children: [
-              loadIcon(26),
-              const SizedBox(width: 10),
-              const Expanded(
-                child: Text('YC 远程',
-                    style:
-                        TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+          Obx(() {
+            final n = stateGlobal.videoConnCount.value;
+            if (n <= 0) return const SizedBox(height: 10);
+            return Container(
+              margin: const EdgeInsets.fromLTRB(8, 8, 8, 4),
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+              decoration: BoxDecoration(
+                  color: _C.accent, borderRadius: BorderRadius.circular(6)),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('本机被控中',
+                      style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white)),
+                  const SizedBox(height: 6),
+                  Text('当前有 $n 台设备正在控制此电脑',
+                      style:
+                          const TextStyle(fontSize: 11.5, color: Colors.white)),
+                ],
               ),
-            ]),
+            );
+          }),
+          InkWell(
+            onTap: () => setState(() => _collapsed = !_collapsed),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 10, 14, 8),
+              child: Row(children: [
+                const Icon(Icons.devices_rounded, size: 17, color: _C.text),
+                const SizedBox(width: 9),
+                const Expanded(
+                  child: Text('我的设备',
+                      style: TextStyle(
+                          fontSize: 13.5, fontWeight: FontWeight.w500)),
+                ),
+                Icon(
+                    _collapsed
+                        ? Icons.keyboard_arrow_down_rounded
+                        : Icons.keyboard_arrow_up_rounded,
+                    size: 17,
+                    color: _C.sub),
+              ]),
+            ),
+          ),
+          Expanded(
+            child: _collapsed
+                ? const SizedBox()
+                : (shown.isEmpty
+                    ? _sidebarEmpty(q.isNotEmpty)
+                    : ListView.builder(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        itemCount: shown.length,
+                        itemBuilder: (_, i) {
+                          final d = shown[i];
+                          return _DeviceRow(
+                            device: d,
+                            isMe: d.id == _myId,
+                            selected: d.id == _selected,
+                            onTap: () => setState(() => _selected = d.id),
+                            onOpen: () {
+                              if (d.id != _myId && d.online) {
+                                connect(context, d.id);
+                              }
+                            },
+                          );
+                        })),
           ),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14),
+            padding: const EdgeInsets.fromLTRB(10, 0, 10, 12),
             child: SizedBox(
-              height: 34,
+              height: 32,
               child: TextField(
                 onChanged: (v) => setState(() => _query = v),
                 cursorColor: _C.accent,
@@ -217,13 +400,13 @@ class _YcHomeState extends State<YcHome> {
                   hintText: '搜索设备',
                   hintStyle: const TextStyle(fontSize: 13, color: _C.dim),
                   prefixIcon:
-                      const Icon(Icons.search_rounded, size: 17, color: _C.dim),
+                      const Icon(Icons.search_rounded, size: 16, color: _C.dim),
                   prefixIconConstraints:
-                      const BoxConstraints(minWidth: 36, minHeight: 34),
+                      const BoxConstraints(minWidth: 34, minHeight: 32),
                   filled: true,
                   fillColor: _C.bg,
                   isDense: true,
-                  contentPadding: const EdgeInsets.symmetric(vertical: 9),
+                  contentPadding: const EdgeInsets.symmetric(vertical: 8),
                   border: _searchBorder(_C.line),
                   enabledBorder: _searchBorder(_C.line),
                   focusedBorder: _searchBorder(_C.accent),
@@ -231,49 +414,13 @@ class _YcHomeState extends State<YcHome> {
               ),
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(18, 18, 10, 6),
-            child: Row(children: [
-              Expanded(
-                child: Text(
-                    '我的设备${_devices.isEmpty ? '' : '  ${_devices.length}'}',
-                    style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: _C.dim)),
-              ),
-              _IconBtn(
-                  icon: Icons.refresh_rounded, tip: '刷新', onTap: _refresh),
-            ]),
-          ),
-          Expanded(
-            child: shown.isEmpty
-                ? _sidebarEmpty(q.isNotEmpty)
-                : ListView.builder(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    itemCount: shown.length,
-                    itemBuilder: (_, i) {
-                      final d = shown[i];
-                      return _DeviceRow(
-                        device: d,
-                        isMe: d.id == _myId,
-                        selected: d.id == _selected,
-                        onTap: () => setState(() => _selected = d.id),
-                        onOpen: () {
-                          if (d.id != _myId && d.online) connect(context, d.id);
-                        },
-                      );
-                    }),
-          ),
-          Container(height: 1, color: _C.line),
-          _account(),
         ],
       ),
     );
   }
 
   OutlineInputBorder _searchBorder(Color c) => OutlineInputBorder(
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(6),
       borderSide: BorderSide(color: c, width: 1));
 
   Widget _sidebarEmpty(bool searching) {
@@ -290,63 +437,6 @@ class _YcHomeState extends State<YcHome> {
     return Padding(
       padding: const EdgeInsets.fromLTRB(18, 10, 18, 0),
       child: Text(msg, style: const TextStyle(fontSize: 12.5, color: _C.dim)),
-    );
-  }
-
-  Widget _account() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(14, 10, 8, 10),
-      child: Row(children: [
-        Container(
-          width: 30,
-          height: 30,
-          alignment: Alignment.center,
-          decoration:
-              const BoxDecoration(color: _C.accent, shape: BoxShape.circle),
-          child: Obx(() {
-            final n = gFFI.userModel.displayNameOrUserName;
-            return Text(n.isEmpty ? '?' : n.substring(0, 1).toUpperCase(),
-                style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white));
-          }),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Obx(() => Text(gFFI.userModel.displayNameOrUserName,
-              overflow: TextOverflow.ellipsis,
-              style:
-                  const TextStyle(fontSize: 13, fontWeight: FontWeight.w500))),
-        ),
-        PopupMenuButton<String>(
-          tooltip: '菜单',
-          padding: EdgeInsets.zero,
-          color: _C.bg,
-          elevation: 6,
-          offset: const Offset(0, -96),
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-              side: const BorderSide(color: _C.line)),
-          icon: const Icon(Icons.menu_rounded, size: 18, color: _C.sub),
-          onSelected: (v) {
-            if (v == 'settings') DesktopTabPage.onAddSetting();
-            if (v == 'logout') gFFI.userModel.logOut();
-          },
-          itemBuilder: (_) => const [
-            PopupMenuItem(
-                value: 'settings',
-                height: 38,
-                child: Text('设置',
-                    style: TextStyle(fontSize: 13, color: _C.text))),
-            PopupMenuItem(
-                value: 'logout',
-                height: 38,
-                child: Text('退出登录',
-                    style: TextStyle(fontSize: 13, color: _C.text))),
-          ],
-        ),
-      ]),
     );
   }
 
@@ -372,8 +462,8 @@ class _YcHomeState extends State<YcHome> {
             const SizedBox(height: 8),
             Text(body,
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                    fontSize: 13, color: _C.dim, height: 1.6)),
+                style:
+                    const TextStyle(fontSize: 13, color: _C.dim, height: 1.6)),
           ],
         ]),
       ),
@@ -442,48 +532,51 @@ class _DeviceRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final d = device;
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
+      padding: const EdgeInsets.symmetric(horizontal: 8),
       child: Material(
-        color: selected ? _C.bg : Colors.transparent,
-        borderRadius: BorderRadius.circular(8),
+        color: selected ? _C.sel : Colors.transparent,
+        borderRadius: BorderRadius.circular(6),
         child: InkWell(
           onTap: onTap,
           onDoubleTap: onOpen,
-          borderRadius: BorderRadius.circular(8),
-          hoverColor: selected ? _C.bg : _C.hover,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+          borderRadius: BorderRadius.circular(6),
+          hoverColor: selected ? _C.sel : _C.hover,
+          child: SizedBox(
+            height: 36,
             child: Row(children: [
-              _OsTile(os: d.os, online: d.online),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(d.name,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                            fontSize: 13.5,
-                            fontWeight: FontWeight.w500,
-                            color: d.online ? _C.text : _C.dim)),
-                    const SizedBox(height: 3),
-                    Row(children: [
-                      Container(
-                        width: 6,
-                        height: 6,
-                        decoration: BoxDecoration(
-                            color: d.online ? _C.accent : _C.off,
-                            shape: BoxShape.circle),
-                      ),
-                      const SizedBox(width: 5),
-                      Text(
-                          '${d.online ? '在线' : '离线'}${isMe ? ' · 本机' : ''}',
-                          style:
-                              const TextStyle(fontSize: 11.5, color: _C.dim)),
-                    ]),
-                  ],
+              SizedBox(
+                width: 34,
+                child: Align(
+                  alignment: const Alignment(0.55, 0),
+                  child: Container(
+                    width: 6,
+                    height: 6,
+                    decoration: BoxDecoration(
+                        color: d.online
+                            ? const Color(0xFF22C55E)
+                            : Colors.transparent,
+                        shape: BoxShape.circle),
+                  ),
                 ),
               ),
+              _OsTile(os: d.os, online: d.online, size: 22),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(d.name,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 13.5, color: _C.text)),
+              ),
+              if (isMe)
+                Container(
+                  margin: const EdgeInsets.only(right: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                  decoration: BoxDecoration(
+                      border: Border.all(color: _C.accent),
+                      borderRadius: BorderRadius.circular(4)),
+                  child: const Text('本机',
+                      style: TextStyle(fontSize: 10.5, color: _C.accent)),
+                ),
             ]),
           ),
         ),
@@ -501,114 +594,136 @@ class _DevicePage extends StatelessWidget {
   Widget build(BuildContext context) {
     final d = device;
     final canOpen = d.online && !isMe;
+    final String hint;
+    if (isMe) {
+      hint = d.ready ? '这是本机，其他设备可以直接进入它的桌面' : '正在把本机接入账号…';
+    } else if (!d.online) {
+      hint = '设备离线';
+    } else if (!d.ready) {
+      hint = '该设备尚未完成接入，进入时需要输入连接密码';
+    } else {
+      hint = '';
+    }
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(32, 30, 32, 24),
+      padding: const EdgeInsets.fromLTRB(40, 30, 40, 24),
       child: Align(
         alignment: Alignment.topLeft,
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 760),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(22),
-                decoration: BoxDecoration(
-                    color: _C.card,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: _C.line)),
-                child: Row(children: [
-                  _OsTile(os: d.os, online: d.online, size: 56),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(d.name,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                                fontSize: 20, fontWeight: FontWeight.w700)),
-                        const SizedBox(height: 6),
-                        Text(
-                            [
-                              _osLabel(d.os),
-                              d.online ? '在线' : '离线',
-                              if (isMe) '本机',
-                            ].join('  ·  '),
-                            style:
-                                const TextStyle(fontSize: 13, color: _C.sub)),
-                      ],
+          constraints: const BoxConstraints(maxWidth: 720),
+          child: Container(
+            clipBehavior: Clip.antiAlias,
+            decoration: BoxDecoration(
+                color: _C.bg,
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: _C.line)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Container(
+                  height: 240,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: d.online
+                          ? const [Color(0xFF0E7C48), Color(0xFF34C77B)]
+                          : const [Color(0xFFB9BEC7), Color(0xFFD9DCE2)],
                     ),
                   ),
-                  const SizedBox(width: 16),
-                  if (!isMe)
-                    _PrimaryBtn(
-                      label: d.online ? '进入桌面' : '设备离线',
-                      onTap: canOpen ? () => connect(context, d.id) : null,
-                    ),
-                ]),
-              ),
-              if (isMe) ...[
-                const SizedBox(height: 14),
-                Text(
-                    d.ready
-                        ? '这台电脑已就绪，登录同一账号的其他设备可以直接进入它的桌面。'
-                        : '正在把这台电脑接入账号，稍等片刻…',
-                    style: const TextStyle(
-                        fontSize: 13, color: _C.sub, height: 1.6)),
-              ] else ...[
-                if (d.online && !d.ready) ...[
-                  const SizedBox(height: 14),
-                  const Text('这台电脑还没完成接入，进入时需要输入它的连接密码。',
-                      style: TextStyle(fontSize: 13, color: _C.warn)),
-                ],
-                const SizedBox(height: 26),
-                const Text('快捷功能',
-                    style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: _C.sub)),
-                const SizedBox(height: 12),
-                Wrap(spacing: 12, runSpacing: 12, children: [
-                  _QuickTile(
-                      icon: Icons.folder_open_rounded,
-                      label: '文件传输',
-                      onTap: canOpen
-                          ? () => connect(context, d.id, isFileTransfer: true)
-                          : null),
-                  _QuickTile(
-                      icon: Icons.terminal_rounded,
-                      label: '终端',
-                      onTap: canOpen
-                          ? () => connect(context, d.id, isTerminal: true)
-                          : null),
-                  _QuickTile(
-                      icon: Icons.videocam_outlined,
-                      label: '摄像头',
-                      onTap: canOpen
-                          ? () => connect(context, d.id, isViewCamera: true)
-                          : null),
-                ]),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(_osIcon(d.os),
+                          size: 46, color: Colors.white.withOpacity(0.92)),
+                      const SizedBox(height: 18),
+                      if (canOpen)
+                        Material(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(8),
+                          child: InkWell(
+                            onTap: () => connect(context, d.id),
+                            borderRadius: BorderRadius.circular(8),
+                            child: Container(
+                              width: 148,
+                              height: 42,
+                              alignment: Alignment.center,
+                              child: const Text('进入桌面',
+                                  style: TextStyle(
+                                      fontSize: 14.5,
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFF0E7C48))),
+                            ),
+                          ),
+                        ),
+                      if (hint.isNotEmpty)
+                        Padding(
+                          padding: EdgeInsets.only(top: canOpen ? 12 : 0),
+                          child: Text(hint,
+                              style: const TextStyle(
+                                  fontSize: 12.5, color: Colors.white)),
+                        ),
+                    ],
+                  ),
+                ),
+                SizedBox(
+                  height: 52,
+                  child: Row(children: [
+                    _BarAction(
+                        icon: Icons.folder_open_rounded,
+                        label: '文件传输',
+                        onTap: canOpen
+                            ? () => connect(context, d.id, isFileTransfer: true)
+                            : null),
+                    const _BarDivider(),
+                    _BarAction(
+                        icon: Icons.terminal_rounded,
+                        label: '终端',
+                        onTap: canOpen
+                            ? () => connect(context, d.id, isTerminal: true)
+                            : null),
+                    const _BarDivider(),
+                    _BarAction(
+                        icon: Icons.videocam_outlined,
+                        label: '摄像头',
+                        onTap: canOpen
+                            ? () => connect(context, d.id, isViewCamera: true)
+                            : null),
+                  ]),
+                ),
               ],
-              const SizedBox(height: 26),
-              const Text('设备信息',
-                  style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: _C.sub)),
-              const SizedBox(height: 4),
-              _InfoRow(
-                  label: '设备码',
-                  value: formatID(d.id),
-                  onCopy: () {
-                    Clipboard.setData(ClipboardData(text: d.id));
-                    showToast('已复制');
-                  }),
-              _InfoRow(label: '系统', value: _osLabel(d.os)),
-              if (d.owner.isNotEmpty) _InfoRow(label: '登录账号', value: d.owner),
-              if (d.group.isNotEmpty) _InfoRow(label: '分组', value: d.group),
-            ],
+            ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _BarDivider extends StatelessWidget {
+  const _BarDivider();
+  @override
+  Widget build(BuildContext context) =>
+      Container(width: 1, height: 18, color: _C.line);
+}
+
+class _BarAction extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback? onTap;
+  const _BarAction({required this.icon, required this.label, this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final c = onTap != null ? _C.text : _C.off;
+    return Expanded(
+      child: InkWell(
+        onTap: onTap,
+        hoverColor: _C.card,
+        child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+          Icon(icon, size: 19, color: c),
+          const SizedBox(width: 8),
+          Text(label, style: TextStyle(fontSize: 14, color: c)),
+        ]),
       ),
     );
   }
@@ -643,70 +758,6 @@ class _PrimaryBtn extends StatelessWidget {
       ),
     );
   }
-}
-
-class _QuickTile extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback? onTap;
-  const _QuickTile({required this.icon, required this.label, this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final on = onTap != null;
-    return Material(
-      color: _C.card,
-      shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-          side: const BorderSide(color: _C.line)),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(10),
-        hoverColor: _C.hover,
-        child: SizedBox(
-          width: 132,
-          height: 76,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 22, color: on ? _C.accent : _C.off),
-              const SizedBox(height: 8),
-              Text(label,
-                  style: TextStyle(fontSize: 13, color: on ? _C.text : _C.dim)),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _InfoRow extends StatelessWidget {
-  final String label;
-  final String value;
-  final VoidCallback? onCopy;
-  const _InfoRow({required this.label, required this.value, this.onCopy});
-
-  @override
-  Widget build(BuildContext context) => Container(
-        height: 42,
-        decoration: const BoxDecoration(
-            border: Border(bottom: BorderSide(color: _C.line))),
-        child: Row(children: [
-          SizedBox(
-            width: 88,
-            child: Text(label,
-                style: const TextStyle(fontSize: 13, color: _C.dim)),
-          ),
-          Expanded(
-            child: Text(value,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 13, color: _C.text)),
-          ),
-          if (onCopy != null)
-            _IconBtn(icon: Icons.copy_rounded, tip: '复制', onTap: onCopy!),
-        ]),
-      );
 }
 
 class _NoticeStrip extends StatelessWidget {
@@ -749,106 +800,6 @@ class _NoticeStrip extends StatelessWidget {
           ],
         ]),
       );
-}
-
-/// Whether this computer is reachable, in one quiet line.
-class _StatusBar extends StatefulWidget {
-  const _StatusBar();
-
-  @override
-  State<_StatusBar> createState() => _StatusBarState();
-}
-
-class _StatusBarState extends State<_StatusBar> {
-  Timer? _timer;
-  String _version = '';
-
-  @override
-  void initState() {
-    super.initState();
-    _timer = periodic_immediate(const Duration(seconds: 1), _poll);
-    bind.mainGetVersion().then((v) {
-      if (mounted) setState(() => _version = v);
-    });
-  }
-
-  @override
-  void dispose() {
-    _timer?.cancel();
-    super.dispose();
-  }
-
-  Future<void> _poll() async {
-    try {
-      final status =
-          jsonDecode(await bind.mainGetConnectStatus()) as Map<String, dynamic>;
-      final n = status['status_num'];
-      stateGlobal.svcStatus.value = n == 0
-          ? SvcStatus.connecting
-          : (n == 1 ? SvcStatus.ready : SvcStatus.notReady);
-      final count = status['video_conn_count'];
-      if (count is int) stateGlobal.videoConnCount.value = count;
-    } catch (_) {}
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final stopped = Get.isRegistered<RxBool>(tag: 'stop-service')
-        ? Get.find<RxBool>(tag: 'stop-service')
-        : false.obs;
-    return Container(
-      height: 34,
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      decoration: const BoxDecoration(
-          border: Border(top: BorderSide(color: _C.line))),
-      child: Obx(() {
-        final Color color;
-        final String text;
-        if (stopped.value) {
-          color = _C.off;
-          text = '本机已暂停被控';
-        } else {
-          switch (stateGlobal.svcStatus.value) {
-            case SvcStatus.ready:
-              color = _C.accent;
-              text = '已连接';
-              break;
-            case SvcStatus.connecting:
-              color = const Color(0xFFF5A623);
-              text = '正在连接…';
-              break;
-            default:
-              color = _C.danger;
-              text = '未连接，请检查网络';
-          }
-        }
-        return Row(children: [
-          Container(
-            width: 7,
-            height: 7,
-            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-          ),
-          const SizedBox(width: 8),
-          Text(text, style: const TextStyle(fontSize: 12, color: _C.sub)),
-          if (stopped.value) ...[
-            const SizedBox(width: 10),
-            InkWell(
-              onTap: () => start_service(true),
-              child: const Text('恢复',
-                  style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: _C.accent)),
-            ),
-          ],
-          const Spacer(),
-          if (_version.isNotEmpty)
-            Text('版本 $_version',
-                style: const TextStyle(fontSize: 12, color: _C.dim)),
-        ]);
-      }),
-    );
-  }
 }
 
 // ---------- signed out ----------
@@ -983,7 +934,6 @@ class _SignInState extends State<_SignIn> {
             ),
           ),
         ),
-        const _StatusBar(),
       ],
     );
   }

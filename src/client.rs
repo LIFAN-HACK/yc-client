@@ -472,6 +472,9 @@ impl Client {
         } else {
             (peer, "", key, token)
         };
+        // YC: the open-source hbbs has no use for the account token and never offers the key
+        // exchange that sending one waits for, so a signed-in client could not connect at all.
+        let token = if other_server.is_empty() { "" } else { token };
         let (rendezvous_server, servers, contained) = if other_server.is_empty() {
             crate::get_rendezvous_server(1_000).await
         } else {
