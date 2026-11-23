@@ -9,112 +9,95 @@ import sys
 from pathlib import Path
 from PIL import Image, ImageDraw
 
-BG_TOP = (24, 27, 38, 255)
-BG_BOT = (9, 10, 15, 255)
-PAPER = (244, 246, 255, 255)
-STAR_A = (92, 141, 255)
-STAR_B = (178, 132, 255)
+INK = (11, 13, 16, 255)
+PAPER = (255, 255, 255, 255)
 SS = 4  # supersampling factor
 ROOT = Path(__file__).resolve().parents[2]
 
-STAR = (23.6, 9.4)  # centre of the spark, on the 32-unit grid
-STAR_R = 5.4
+# The organisation mark (ring and dot, viewBox 320x310) laid on a 100-unit canvas, with the
+# product glyph, a monitor with a pointer, cut into the ring's lower right like open-drive's lock.
+K = 0.268
+OX = 50 - (9.5 + 291.5 / 2) * K
+OY = 49.5 - (15 + 261.5 / 2) * K
+RING = (OX + 130 * K, OY + 156 * K, 110 * K, 21 * K)  # cx, cy, r, stroke
+DOT = (OX + 279 * K, OY + 37 * K, 22 * K)
+SCREEN = (56.0, 59.55, 87.0, 81.05, 4.2)  # x0, y0, x1, y1, radius
+BASE = (63.3, 85.35, 79.7, 89.45, 2.05)
+NECK = (68.9, 74.1)
+GAP = 2.6
+POINTER = [(0, 0), (0, 16.5), (4.4, 12.6), (7.4, 19.2), (10.6, 17.7), (7.6, 11.3), (13.4, 11.0)]
+POINTER_AT = (66.5, 65.216, 0.62)  # x, y, scale
 
-SVG = (
-    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">'
-    '<defs><linearGradient id="b" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#181b26"/>'
-    '<stop offset="1" stop-color="#090a0f"/></linearGradient>'
-    '<linearGradient id="s" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5c8dff"/>'
-    '<stop offset="1" stop-color="#b284ff"/></linearGradient></defs>'
-    '<rect width="32" height="32" rx="{rx}" fill="url(#b)"/>'
-    '<path d="M16.6 9H9.6A2.6 2.6 0 0 0 7 11.6v8.3a2.6 2.6 0 0 0 2.6 2.6h11.8a2.6 2.6 0 0 0 2.6-2.6v-3.3" '
-    'fill="none" stroke="#f4f6ff" stroke-width="2.3" stroke-linecap="round"/>'
-    '<path d="M12.4 26h6.2" stroke="#f4f6ff" stroke-width="2.3" stroke-linecap="round"/>'
-    '<path d="M23.6 4c.5 3.2 2.2 4.9 5.4 5.4-3.2.5-4.9 2.2-5.4 5.4-.5-3.2-2.2-4.9-5.4-5.4 3.2-.5 4.9-2.2 5.4-5.4z" '
-    'fill="url(#s)"/></svg>\n'
+
+def _pointer():
+    ax, ay, k = POINTER_AT
+    return [(ax + x * k, ay + y * k) for x, y in POINTER]
+
+
+SVG_MARK = (
+    '<circle cx="{cx:.3f}" cy="{cy:.3f}" r="{r:.3f}" fill="none" stroke="{fg}" stroke-width="{w:.3f}"/>'
+    '<circle cx="{dx:.3f}" cy="{dy:.3f}" r="{dr:.3f}" fill="{fg}"/>'
+    '<rect x="{kx:.2f}" y="{ky:.2f}" width="{kw:.2f}" height="{kh:.2f}" rx="{kr:.2f}" fill="{bg}"/>'
+    '<rect x="{bkx:.2f}" y="{sy1:.2f}" width="{bkw:.2f}" height="{bkh:.2f}" rx="4.6" fill="{bg}"/>'
+    '<rect x="{sx0:.2f}" y="{sy0:.2f}" width="{sw:.2f}" height="{sh:.2f}" rx="{sr:.2f}" fill="{fg}"/>'
+    '<rect x="{nx:.2f}" y="{sy1b:.2f}" width="{nw:.2f}" height="{nh:.2f}" fill="{fg}"/>'
+    '<rect x="{bx:.2f}" y="{by:.2f}" width="{bw:.2f}" height="{bh:.2f}" rx="{br:.2f}" fill="{fg}"/>'
+    '<path d="{ptr}" fill="{bg}"/>'
 )
 
 
-def _grid(size, box):
+def svg(rx, fg="#0b0d10", bg="#ffffff"):
+    x0, y0, x1, y1, sr = SCREEN
+    bx0, by0, bx1, by1, br = BASE
+    ptr = "M" + "L".join(f"{x:.2f} {y:.2f}" for x, y in _pointer()) + "z"
+    body = SVG_MARK.format(
+        cx=RING[0], cy=RING[1], r=RING[2], w=RING[3], dx=DOT[0], dy=DOT[1], dr=DOT[2], fg=fg, bg=bg,
+        kx=x0 - GAP, ky=y0 - GAP, kw=x1 - x0 + 2 * GAP, kh=y1 - y0 + 2 * GAP, kr=sr + GAP,
+        bkx=bx0 - GAP, sy1=y1, bkw=bx1 - bx0 + 2 * GAP, bkh=by1 + GAP - y1,
+        sx0=x0, sy0=y0, sw=x1 - x0, sh=y1 - y0, sr=sr,
+        nx=NECK[0], sy1b=y1 - 0.2, nw=NECK[1] - NECK[0], nh=by0 - y1 + 0.4,
+        bx=bx0, by=by0, bw=bx1 - bx0, bh=by1 - by0, br=br, ptr=ptr)
+    return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">'
+            f'<rect width="100" height="100" rx="{rx}" fill="{bg}"/>{body}</svg>\n')
+
+
+def mark_mask(size, box):
+    """Alpha mask of the mark. `box` = (x0, y0, x1, y1) of the 100-unit canvas shown."""
     n = size * SS
     k = n / (box[2] - box[0])
-    return n, k, (lambda x: (x - box[0]) * k), (lambda y: (y - box[1]) * k)
-
-
-def screen_mask(size, box):
-    """Monitor outline, left open where the spark sits."""
-    n, k, px, py = _grid(size, box)
+    px = lambda x: (x - box[0]) * k
+    py = lambda y: (y - box[1]) * k
     m = Image.new("L", (n, n), 0)
     d = ImageDraw.Draw(m)
-    w = 1.15
-    d.rounded_rectangle([px(7 - w), py(9 - w), px(24 + w), py(22.5 + w)], radius=(2.6 + w) * k, fill=255)
-    d.rounded_rectangle([px(7 + w), py(9 + w), px(24 - w), py(22.5 - w)], radius=max(0.1, 2.6 - w) * k, fill=0)
-    gap = STAR_R + 1.9
-    d.ellipse([px(STAR[0] - gap), py(STAR[1] - gap), px(STAR[0] + gap), py(STAR[1] + gap)], fill=0)
-    d.line([px(12.4), py(26), px(18.6), py(26)], fill=255, width=round(2 * w * k))
-    for x in (12.4, 18.6):
-        d.ellipse([px(x - w), py(26 - w), px(x + w), py(26 + w)], fill=255)
+    cx, cy, r, w = RING
+    d.ellipse([px(cx - r - w / 2), py(cy - r - w / 2), px(cx + r + w / 2), py(cy + r + w / 2)], fill=255)
+    d.ellipse([px(cx - r + w / 2), py(cy - r + w / 2), px(cx + r - w / 2), py(cy + r - w / 2)], fill=0)
+    dx, dy, dr = DOT
+    d.ellipse([px(dx - dr), py(dy - dr), px(dx + dr), py(dy + dr)], fill=255)
+    x0, y0, x1, y1, sr = SCREEN
+    bx0, by0, bx1, by1, br = BASE
+    d.rounded_rectangle([px(x0 - GAP), py(y0 - GAP), px(x1 + GAP), py(y1 + GAP)], radius=(sr + GAP) * k, fill=0)
+    d.rounded_rectangle([px(bx0 - GAP), py(y1), px(bx1 + GAP), py(by1 + GAP)], radius=(GAP + 2) * k, fill=0)
+    d.rounded_rectangle([px(x0), py(y0), px(x1), py(y1)], radius=sr * k, fill=255)
+    d.rectangle([px(NECK[0]), py(y1) - 1, px(NECK[1]), py(by0) + 1], fill=255)
+    d.rounded_rectangle([px(bx0), py(by0), px(bx1), py(by1)], radius=br * k, fill=255)
+    d.polygon([(px(x), py(y)) for x, y in _pointer()], fill=0)
     return m
 
 
-def star_mask(size, box):
-    """Four-point spark with concave sides."""
-    import math
-    n, k, px, py = _grid(size, box)
-    m = Image.new("L", (n, n), 0)
-    d = ImageDraw.Draw(m)
-    pts = []
-    steps = 24
-    for q in range(4):
-        a0 = math.pi / 2 * q - math.pi / 2
-        a1 = a0 + math.pi / 2
-        p0 = (STAR[0] + STAR_R * math.cos(a0), STAR[1] + STAR_R * math.sin(a0))
-        p1 = (STAR[0] + STAR_R * math.cos(a1), STAR[1] + STAR_R * math.sin(a1))
-        c = (STAR[0] + 0.16 * STAR_R * math.cos((a0 + a1) / 2), STAR[1] + 0.16 * STAR_R * math.sin((a0 + a1) / 2))
-        for i in range(steps):
-            t = i / steps
-            x = (1 - t) ** 2 * p0[0] + 2 * (1 - t) * t * c[0] + t ** 2 * p1[0]
-            y = (1 - t) ** 2 * p0[1] + 2 * (1 - t) * t * c[1] + t ** 2 * p1[1]
-            pts.append((px(x), py(y)))
-    d.polygon(pts, fill=255)
-    return m
-
-
-def gradient(n, c0, c1, diagonal=False):
-    g = Image.linear_gradient("L").resize((n, n))
-    if diagonal:
-        g = Image.blend(g, g.rotate(90), 0.5)
-    a = Image.new("RGBA", (n, n), tuple(c0[:3]) + (255,))
-    b = Image.new("RGBA", (n, n), tuple(c1[:3]) + (255,))
-    return Image.composite(b, a, g)
-
-
-def glyph(size, box, color=None):
-    """The mark. `color` paints it flat (trays, notifications); None keeps the two-tone version."""
+def glyph(size, box, color=INK):
     n = size * SS
-    out = Image.new("RGBA", (n, n), (0, 0, 0, 0))
-    paper = Image.new("RGBA", (n, n), color or PAPER)
-    paper.putalpha(screen_mask(size, box))
-    out.alpha_composite(paper)
-    if color:
-        star = Image.new("RGBA", (n, n), color)
-    else:
-        # Fit the gradient to the spark so both of its colours show at any zoom.
-        _, k, px, py = _grid(size, box)
-        side = max(2, round(2 * STAR_R * k))
-        star = Image.new("RGBA", (n, n), (0, 0, 0, 0))
-        star.paste(gradient(side, STAR_A, STAR_B, diagonal=True), (round(px(STAR[0] - STAR_R)), round(py(STAR[1] - STAR_R))))
-    star.putalpha(star_mask(size, box))
-    out.alpha_composite(star)
-    return out
+    layer = Image.new("RGBA", (n, n), color)
+    layer.putalpha(mark_mask(size, box))
+    return layer
 
 
 def down(img, size):
     return img.resize((size, size), Image.LANCZOS)
 
 
-def tile(size, radius=9 / 32, inset=0.0, shape="round-rect", zoom=1.0):
-    """Dark tile with the mark. inset = transparent margin as a fraction of the canvas."""
+def tile(size, radius=0.2, inset=0.0, shape="round-rect", zoom=1.0):
+    """White tile with the black mark. inset = transparent margin as a fraction of the canvas."""
     n = size * SS
     mask = Image.new("L", (n, n), 0)
     d = ImageDraw.Draw(mask)
@@ -125,19 +108,19 @@ def tile(size, radius=9 / 32, inset=0.0, shape="round-rect", zoom=1.0):
         d.rectangle([a, a, b, b], fill=255)
     else:
         d.rounded_rectangle([a, a, b, b], radius=(b - a) * radius, fill=255)
-    img = gradient(n, BG_TOP, BG_BOT)
+    img = Image.new("RGBA", (n, n), PAPER)
     img.putalpha(mask)
-    span = 32 * (1 / (1 - 2 * inset)) / zoom
-    lo = 16 - span / 2
+    span = 100 * (1 / (1 - 2 * inset)) / zoom
+    lo = 50 - span / 2
     img.alpha_composite(glyph(size, (lo, lo, lo + span, lo + span)))
     return down(img, size)
 
 
-def bare(size, color, pad=1.2):
+def bare(size, color, pad=3.0):
     """Mark alone, cropped close, for trays and notification icons."""
-    lo, hi = 5.85 - pad, 29 + pad
+    lo, hi = 10.9 - pad, 89.1 + pad
     span = hi - lo
-    cy = (4 + 27.15) / 2
+    cy = (14.5 + 89.5) / 2
     return down(glyph(size, (lo, cy - span / 2, hi, cy + span / 2), color), size)
 
 
@@ -169,15 +152,16 @@ def main():
         save(tile(s, radius=0.22, inset=0.04), f"{res}/mipmap-{dpi}/ic_launcher.png")
         save(tile(s, shape="circle", inset=0.02, zoom=0.86), f"{res}/mipmap-{dpi}/ic_launcher_round.png")
         fg = s * 108 // 48
-        save(down(glyph(fg, (16 - 24, 16 - 24, 16 + 24, 16 + 24)), fg), f"{res}/mipmap-{dpi}/ic_launcher_foreground.png")
+        save(down(glyph(fg, (50 - 76, 50 - 76, 50 + 76, 50 + 76)), fg), f"{res}/mipmap-{dpi}/ic_launcher_foreground.png")
         save(bare(s // 2, (255, 255, 255, 255)).convert("LA"), f"{res}/mipmap-{dpi}/ic_stat_logo.png")
 
-    (ROOT / "flutter/assets/icon.svg").write_text(SVG.format(rx=9))
+    (ROOT / "flutter/assets/icon.svg").write_text(svg(20))
+    save(bare(256, (255, 255, 255, 255), pad=1.0), "flutter/assets/mark_white.png")
     print("wrote flutter/assets/icon.svg")
 
     if len(sys.argv) > 1:
         web = Path(sys.argv[1])
-        (web / "icon.svg").write_text(SVG.format(rx=0))
+        (web / "icon.svg").write_text(svg(0))
         for s in (180, 192, 512):
             tile(s, shape="square", zoom=0.82).save(web / f"icon-{s}.png")
         print("wrote web icons in", web)

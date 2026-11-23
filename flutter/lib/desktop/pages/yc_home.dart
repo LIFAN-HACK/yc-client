@@ -44,15 +44,15 @@ class _C {
   static const text = Color(0xFFECEEF3);
   static const sub = Color(0xFFA4A9B6);
   static const dim = Color(0xFF6D7382);
-  static const accent = MyTheme.accent;
-  static const accent2 = Color(0xFFB284FF);
+  static const accent = Color(0xFFECEEF3);
+  static const ink = Color(0xFF0B0D10);
   static const online = Color(0xFF3DDC84);
   static const danger = Color(0xFFFF6B6B);
   static const warn = Color(0xFFF5B74E);
   static const grad = LinearGradient(
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
-      colors: [Color(0xFF5C8DFF), accent2]);
+      colors: [Color(0xFFFFFFFF), Color(0xFFD9DCE4)]);
 }
 
 IconData _osIcon(String os) {
@@ -274,7 +274,7 @@ class _YcHomeState extends State<YcHome> {
           Padding(
             padding: const EdgeInsets.fromLTRB(18, 18, 10, 14),
             child: Row(children: [
-              loadIcon(28),
+              Image.asset('assets/mark_white.png', width: 26, height: 26),
               const SizedBox(width: 10),
               const Expanded(
                 child: Text('OpenDesk',
@@ -301,11 +301,10 @@ class _YcHomeState extends State<YcHome> {
                       style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w700,
-                          color: Colors.white)),
+                          color: _C.ink)),
                   const SizedBox(height: 4),
                   Text('当前有 $n 台设备正在控制此电脑',
-                      style:
-                          const TextStyle(fontSize: 11.5, color: Colors.white)),
+                      style: const TextStyle(fontSize: 11.5, color: _C.ink)),
                 ],
               ),
             );
@@ -427,9 +426,7 @@ class _YcHomeState extends State<YcHome> {
             final n = gFFI.userModel.displayNameOrUserName;
             return Text(n.isEmpty ? '?' : n.substring(0, 1).toUpperCase(),
                 style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white));
+                    fontSize: 13, fontWeight: FontWeight.w700, color: _C.ink));
           }),
         ),
         const SizedBox(width: 10),
@@ -626,7 +623,7 @@ class _DeviceRow extends StatelessWidget {
                 height: 28,
                 decoration: BoxDecoration(
                   color: d.online
-                      ? _C.accent.withOpacity(0.16)
+                      ? _C.accent.withOpacity(0.12)
                       : Colors.white.withOpacity(0.04),
                   borderRadius: BorderRadius.circular(8),
                 ),
@@ -766,7 +763,7 @@ class _DevicePage extends StatelessWidget {
                           center: const Alignment(0, -1.2),
                           radius: 1.3,
                           colors: [
-                            (d.online ? _C.accent : _C.dim).withOpacity(0.26),
+                            (d.online ? _C.accent : _C.dim).withOpacity(0.10),
                             _C.panel,
                           ],
                         ),
@@ -873,13 +870,13 @@ class _PrimaryBtn extends StatelessWidget {
         child: InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(12),
-          hoverColor: Colors.white.withOpacity(0.08),
+          hoverColor: Colors.black.withOpacity(0.08),
           child: Center(
             child: Text(label,
                 style: TextStyle(
                     fontSize: 14.5,
                     fontWeight: FontWeight.w700,
-                    color: on ? Colors.white : _C.dim)),
+                    color: on ? _C.ink : _C.dim)),
           ),
         ),
       ),
@@ -1068,7 +1065,9 @@ class _SignInState extends State<_SignIn> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Center(child: loadIcon(60)),
+                    Center(
+                        child: Image.asset('assets/mark_white.png',
+                            width: 64, height: 64)),
                     const SizedBox(height: 20),
                     const Text('登录 OpenDesk',
                         textAlign: TextAlign.center,

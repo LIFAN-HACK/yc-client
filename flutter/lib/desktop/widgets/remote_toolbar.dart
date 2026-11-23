@@ -1310,7 +1310,7 @@ class _ControlMenu extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _IconSubmenuButton(
-        tooltip: 'Control Actions',
+        tooltip: _InControlCenter.of(context) ? '工具' : 'Control Actions',
         svg: "assets/actions.svg",
         color: _ToolbarTheme.blueColor,
         hoverColor: _ToolbarTheme.hoverBlueColor,
@@ -1812,6 +1812,59 @@ class _DisplayMenuState extends State<_DisplayMenu> {
       return menuChildren;
     }
 
+    if (_InControlCenter.of(context)) {
+      // YC: the control centre shows this menu as the sections people look for by name.
+      final isDefault = ffi.connType == ConnType.defaultConn;
+      group(String label, IconData icon,
+              List<Widget> Function(_IconSubmenuButtonState) getter) =>
+          _IconSubmenuButton(
+            tooltip: label,
+            icon: Icon(icon),
+            ffi: widget.ffi,
+            color: _ToolbarTheme.blueColor,
+            hoverColor: _ToolbarTheme.hoverBlueColor,
+            menuChildrenGetter: getter,
+          );
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          group('画质', Icons.hd_outlined, (_) => [imageQuality(), codec()]),
+          group(
+              '窗口',
+              Icons.aspect_ratio_rounded,
+              (state) => [
+                    _screenAdjustor.adjustWindow(context),
+                    viewStyle(customPercent: _customPercent),
+                    scrollStyle(state, colorScheme),
+                  ]),
+          if (isDefault)
+            group(
+                '显示屏',
+                Icons.monitor_rounded,
+                (_) => [
+                      _ResolutionsMenu(
+                        id: widget.id,
+                        ffi: widget.ffi,
+                        screenAdjustor: _screenAdjustor,
+                      ),
+                      if (showVirtualDisplayMenu(ffi))
+                        _SubmenuButton(
+                          ffi: widget.ffi,
+                          menuChildren:
+                              getVirtualDisplayMenuChildren(ffi, id, null),
+                          child: Text(translate("Virtual display")),
+                        ),
+                    ]),
+          if (isDefault)
+            group('鼠标', Icons.mouse_outlined, (_) => [cursorToggles()]),
+          group('安全与更多', Icons.shield_outlined, (state) {
+            final all = menuChildrenGetter(state);
+            return all.sublist(all.indexWhere((w) => w is Divider) + 1);
+          }),
+        ],
+      );
+    }
     return _IconSubmenuButton(
       tooltip: 'Display Settings',
       svg: "assets/display.svg",
@@ -2574,7 +2627,7 @@ class _KeyboardMenu extends StatelessWidget {
     }
 
     return _IconSubmenuButton(
-        tooltip: 'Keyboard Settings',
+        tooltip: _InControlCenter.of(context) ? '键盘' : 'Keyboard Settings',
         svg: "assets/keyboard_mouse.svg",
         ffi: ffi,
         color: _ToolbarTheme.blueColor,
