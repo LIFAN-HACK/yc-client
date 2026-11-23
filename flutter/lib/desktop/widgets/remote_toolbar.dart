@@ -344,7 +344,7 @@ class _ToolbarTheme {
 
   static double dividerSpaceToAction = isWindows ? 8 : 14;
 
-  static double menuBorderRadius = isWindows ? 5.0 : 7.0;
+  static double menuBorderRadius = 10.0;
   static EdgeInsets menuPadding = isWindows
       ? EdgeInsets.fromLTRB(4, 12, 4, 12)
       : EdgeInsets.fromLTRB(6, 14, 6, 14);
@@ -834,23 +834,23 @@ class _RemoteToolbarState extends State<RemoteToolbar> {
       }
     }));
 
-    toolbarItems
-        .add(_ControlMenu(id: widget.id, ffi: widget.ffi, state: widget.state));
-    toolbarItems.add(_DisplayMenu(
-      id: widget.id,
-      ffi: widget.ffi,
-      state: widget.state,
-      setFullscreen: _setFullscreen,
-    ));
-    // Do not show keyboard for camera connection type.
-    if (widget.ffi.connType == ConnType.defaultConn) {
-      toolbarItems.add(_KeyboardMenu(id: widget.id, ffi: widget.ffi));
-    }
-    toolbarItems.add(_ChatMenu(id: widget.id, ffi: widget.ffi));
-    if (!isWeb) {
-      toolbarItems.add(_VoiceCallMenu(id: widget.id, ffi: widget.ffi));
-    }
-    if (!isWeb) toolbarItems.add(_RecordMenu());
+    // YC: one "控制中心" menu holds what the stock toolbar spread over a row of icons.
+    final centerItems = <Widget>[
+      _ControlMenu(id: widget.id, ffi: widget.ffi, state: widget.state),
+      _DisplayMenu(
+        id: widget.id,
+        ffi: widget.ffi,
+        state: widget.state,
+        setFullscreen: _setFullscreen,
+      ),
+      // Do not show keyboard for camera connection type.
+      if (widget.ffi.connType == ConnType.defaultConn)
+        _KeyboardMenu(id: widget.id, ffi: widget.ffi),
+      _ChatMenu(id: widget.id, ffi: widget.ffi),
+      if (!isWeb) _VoiceCallMenu(id: widget.id, ffi: widget.ffi),
+      if (!isWeb) _RecordMenu(),
+    ];
+    toolbarItems.add(_ControlCenter(ffi: widget.ffi, children: centerItems));
     toolbarItems.add(_CloseMenu(id: widget.id, ffi: widget.ffi));
     final toolbarBorderRadius = BorderRadius.all(Radius.circular(4.0));
     // innerAxis: how the toolbar icons themselves flow.
@@ -3064,6 +3064,12 @@ class _IconMenuButtonState extends State<_IconMenuButton> {
           width: _ToolbarTheme.buttonSize,
           height: _ToolbarTheme.buttonSize,
         );
+    if (_InControlCenter.of(context)) {
+      return MenuItemButton(
+          leadingIcon: _centerIcon(context, widget.icon, widget.assetName),
+          onPressed: widget.onPressed,
+          child: Text(translate(widget.tooltip)));
+    }
     var button = SizedBox(
       width: widget.width ?? _ToolbarTheme.buttonSize,
       height: _ToolbarTheme.buttonSize,
@@ -3149,6 +3155,18 @@ class _IconSubmenuButtonState extends State<_IconSubmenuButton> {
           width: _ToolbarTheme.buttonSize,
           height: _ToolbarTheme.buttonSize,
         );
+    if (_InControlCenter.of(context)) {
+      return SubmenuButton(
+          menuStyle:
+              widget.menuStyle ?? _ToolbarTheme.defaultMenuStyle(context),
+          leadingIcon: _centerIcon(context, widget.icon, widget.svg),
+          child: Text(translate(widget.tooltip)),
+          menuChildren: widget
+              .menuChildrenGetter(this)
+              .map((e) => _buildPointerTrackWidget(
+                  _InControlCenter(inside: false, child: e), widget.ffi))
+              .toList());
+    }
     final button = SizedBox(
         width: widget.width ?? _ToolbarTheme.buttonSize,
         height: _ToolbarTheme.buttonSize,
@@ -3173,6 +3191,90 @@ class _IconSubmenuButtonState extends State<_IconSubmenuButton> {
             menuChildren: widget
                 .menuChildrenGetter(this)
                 .map((e) => _buildPointerTrackWidget(e, widget.ffi))
+                .toList()));
+    return MenuBar(children: [
+      button.marginSymmetric(
+          horizontal: _ToolbarTheme.buttonHMargin,
+          vertical: _ToolbarTheme.buttonVMargin)
+    ]);
+  }
+}
+
+/// Marks widgets shown as labelled rows of the control centre rather than toolbar icons.
+class _InControlCenter extends InheritedWidget {
+  final bool inside;
+  const _InControlCenter({required super.child, this.inside = true});
+
+  static bool of(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<_InControlCenter>()?.inside ??
+      false;
+
+  @override
+  bool updateShouldNotify(_InControlCenter old) => old.inside != inside;
+}
+
+Widget _centerIcon(BuildContext context, Widget? icon, String? svg) {
+  final color = Theme.of(context).iconTheme.color ?? Colors.white;
+  return SizedBox(
+    width: 20,
+    height: 20,
+    child: FittedBox(
+      child: icon ??
+          SvgPicture.asset(
+            svg!,
+            colorFilter: ColorFilter.mode(color, BlendMode.srcIn),
+            width: _ToolbarTheme.buttonSize,
+            height: _ToolbarTheme.buttonSize,
+          ),
+    ),
+  );
+}
+
+class _ControlCenter extends StatefulWidget {
+  final FFI ffi;
+  final List<Widget> children;
+  const _ControlCenter({Key? key, required this.ffi, required this.children})
+      : super(key: key);
+
+  @override
+  State<_ControlCenter> createState() => _ControlCenterState();
+}
+
+class _ControlCenterState extends State<_ControlCenter> {
+  bool hover = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final button = SizedBox(
+        height: _ToolbarTheme.buttonSize,
+        child: SubmenuButton(
+            menuStyle: _ToolbarTheme.defaultMenuStyle(context),
+            style: _ToolbarTheme.defaultMenuButtonStyle,
+            onHover: (value) => setState(() => hover = value),
+            child: Material(
+                type: MaterialType.transparency,
+                child: Ink(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    height: _ToolbarTheme.buttonSize,
+                    decoration: BoxDecoration(
+                      borderRadius:
+                          BorderRadius.circular(_ToolbarTheme.iconRadius),
+                      color: hover
+                          ? _ToolbarTheme.hoverBlueColor
+                          : _ToolbarTheme.blueColor,
+                    ),
+                    child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                      Icon(Icons.tune_rounded, size: 16, color: Colors.white),
+                      SizedBox(width: 6),
+                      Text('控制中心',
+                          style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white)),
+                    ]))),
+            menuChildren: widget.children
+                .map((e) => _buildPointerTrackWidget(
+                    _InControlCenter(child: e), widget.ffi))
                 .toList()));
     return MenuBar(children: [
       button.marginSymmetric(
