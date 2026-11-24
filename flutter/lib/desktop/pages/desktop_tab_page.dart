@@ -89,21 +89,12 @@ class _DesktopTabPageState extends State<DesktopTabPage> {
     super.dispose();
   }
 
-  // YC: the home and settings pages carry their own navigation, so the strip keeps only
-  // the window controls and the drag area.
-  DesktopTab _mainTab(DesktopTab tab) {
-    if (tab.invisibleTabKeys.isEmpty) {
-      tab.invisibleTabKeys.addAll([kTabLabelHomePage, kTabLabelSettingPage]);
-    }
-    return tab;
-  }
-
   @override
   Widget build(BuildContext context) {
     final tabWidget = Container(
         child: Scaffold(
             backgroundColor: const Color(0xFF0F1116),
-            body: _mainTab(DesktopTab(
+            body: DesktopTab(
               controller: tabController,
               showLogo: false,
               tail: Offstage(
@@ -115,7 +106,7 @@ class _DesktopTabPageState extends State<DesktopTabPage> {
                   isClose: false,
                 ),
               ),
-            ))));
+            )));
     return isMacOS || kUseCompatibleUiMode
         ? tabWidget
         : Obx(

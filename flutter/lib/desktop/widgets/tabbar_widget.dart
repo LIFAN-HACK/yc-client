@@ -676,7 +676,9 @@ class _DesktopTabState extends State<DesktopTab>
                                 });
                               }
                             },
-                            child: _ListView(
+                            child: tabType == DesktopTabType.main
+                                ? const SizedBox.expand()
+                                : _ListView(
                               controller: controller,
                               invisibleTabKeys: invisibleTabKeys,
                               tabBuilder: tabBuilder,
