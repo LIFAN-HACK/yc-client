@@ -21,6 +21,7 @@ import '../../common/widgets/chat_page.dart';
 import '../../models/file_model.dart';
 import '../../models/platform_model.dart';
 import '../../models/server_model.dart';
+import 'yc_cm_card.dart';
 
 /// Set only by this window's own close control, and only once the user has confirmed. Any other
 /// way the window can go - a session logout closing every window, the window manager, a native
@@ -183,6 +184,10 @@ class ConnectionManagerState extends State<ConnectionManager>
       }
     }
 
+    // YC: team connections need no approval, so they get a small card, not this window.
+    if (YcCmCards.canShow(serverModel.clients)) {
+      return YcCmCards(clients: serverModel.clients);
+    }
     return serverModel.clients.isEmpty
         ? Column(
             children: [
