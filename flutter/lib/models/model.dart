@@ -1828,6 +1828,10 @@ class FfiModel with ChangeNotifier {
   void _ycApplyViewChoice(String peerId) {
     if (_ycViewChoiceApplied || !isDesktop) return;
     _ycViewChoiceApplied = true;
+    if (bind.mainGetLocalOption(key: 'yc-restart-once') == peerId) {
+      bind.mainSetLocalOption(key: 'yc-restart-once', value: '');
+      bind.sessionRestartRemoteDevice(sessionId: sessionId);
+    }
     final want = bind.mainGetLocalOption(key: 'yc-view-once') == peerId;
     if (want) bind.mainSetLocalOption(key: 'yc-view-once', value: '');
     if (want == _viewOnly) return;

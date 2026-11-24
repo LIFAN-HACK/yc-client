@@ -191,6 +191,48 @@ class _YcHomeState extends State<YcHome> {
     if (d.id == _myId || !d.online) return;
     await bind.mainSetLocalOption(
         key: 'yc-view-once', value: viewOnly ? d.id : '');
+    await bind.mainSetLocalOption(key: 'yc-restart-once', value: '');
+    if (mounted) connect(context, d.id);
+  }
+
+  /// Restarting is a command of a live session, so this opens one and has it send the
+  /// command as soon as it is connected.
+  Future<void> _restart(YcDevice d) async {
+    if (d.id == _myId || !d.online) return;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => Theme(
+        data: MyTheme.darkTheme,
+        child: AlertDialog(
+          backgroundColor: _C.panel,
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+              side: const BorderSide(color: _C.line)),
+          title: const Text('远程重启',
+              style: TextStyle(
+                  fontSize: 16, fontWeight: FontWeight.w700, color: _C.text)),
+          content: SizedBox(
+            width: 320,
+            child: Text('确定要重启“${d.name}”吗？那台电脑上没保存的内容会丢失。重启完成后会自动重新连上。',
+                style:
+                    const TextStyle(fontSize: 13, color: _C.sub, height: 1.6)),
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: const Text('取消', style: TextStyle(color: _C.sub))),
+            TextButton(
+                onPressed: () => Navigator.of(ctx).pop(true),
+                child: const Text('重启',
+                    style: TextStyle(
+                        color: _C.danger, fontWeight: FontWeight.w700))),
+          ],
+        ),
+      ),
+    );
+    if (ok != true || !mounted) return;
+    await bind.mainSetLocalOption(key: 'yc-view-once', value: '');
+    await bind.mainSetLocalOption(key: 'yc-restart-once', value: d.id);
     if (mounted) connect(context, d.id);
   }
 
@@ -245,6 +287,7 @@ class _YcHomeState extends State<YcHome> {
         if (!isMe) item('pin', _pinned.contains(d.id) ? '取消置顶' : '置顶'),
         item('copy', '复制设备码'),
         if (!isMe) const PopupMenuDivider(height: 8),
+        if (!isMe) item('restart', '远程重启', on: canOpen),
         if (!isMe) item('remove', '从账号移除', color: _C.danger),
       ],
     );
@@ -256,6 +299,7 @@ class _YcHomeState extends State<YcHome> {
     if (v == 'rename') _rename(d);
     if (v == 'pin') _togglePin(d);
     if (v == 'copy') _copyId(d);
+    if (v == 'restart') _restart(d);
     if (v == 'remove') _remove(d);
   }
 
@@ -390,6 +434,7 @@ class _YcHomeState extends State<YcHome> {
                         onOpen: () => _open(d),
                         onView: () => _open(d, viewOnly: true),
                         onPin: () => _togglePin(d),
+                        onRestart: () => _restart(d),
                         onRename: () => _rename(d),
                         onRemove: () => _remove(d)),
               ),
@@ -857,6 +902,7 @@ class _DevicePage extends StatelessWidget {
   final VoidCallback onOpen;
   final VoidCallback onView;
   final VoidCallback onPin;
+  final VoidCallback onRestart;
   final VoidCallback onRename;
   final VoidCallback onRemove;
   const _DevicePage(
@@ -866,6 +912,7 @@ class _DevicePage extends StatelessWidget {
       required this.onOpen,
       required this.onView,
       required this.onPin,
+      required this.onRestart,
       required this.onRename,
       required this.onRemove});
 
@@ -939,11 +986,13 @@ class _DevicePage extends StatelessWidget {
                     'rename': '重命名',
                     'copy': '复制设备码',
                     if (!isMe) 'pin': pinned ? '取消置顶' : '置顶',
+                    if (canOpen) 'restart': '远程重启',
                     if (!isMe) 'remove': '从账号移除',
                   },
                   onSelected: (v) {
                     if (v == 'rename') onRename();
                     if (v == 'pin') onPin();
+                    if (v == 'restart') onRestart();
                     if (v == 'copy') _copy();
                     if (v == 'remove') onRemove();
                   },
