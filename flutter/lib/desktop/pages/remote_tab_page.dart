@@ -140,9 +140,17 @@ class _ConnectionTabPageState extends State<ConnectionTabPage> {
           mainAxisSize: MainAxisSize.min,
           children: [
             _RelativeMouseModeHint(tabController: tabController),
-            const AddButton(),
           ],
         ),
+        barBuilder: () {
+          final tabs = tabController.state.value.tabs;
+          if (tabs.length != 1 || tabs.first.page is! RemotePage) return null;
+          final page = tabs.first.page as RemotePage;
+          return SessionTitleBar(
+              id: page.id,
+              resolveFfi: () => page.ffi,
+              state: page.toolbarState);
+        },
         selectedBorderColor: MyTheme.accent,
         pageViewBuilder: (pageView) => pageView,
         labelGetter: DesktopTab.tablabelGetter,

@@ -252,6 +252,8 @@ class DesktopTab extends StatefulWidget {
   final Color? selectedTabBackgroundColor;
   final Color? unSelectedTabBackgroundColor;
   final Color? selectedBorderColor;
+  // YC: a session window shows its own title bar instead of a row of tabs.
+  final Widget? Function()? barBuilder;
 
   final DesktopTabController controller;
 
@@ -277,6 +279,7 @@ class DesktopTab extends StatefulWidget {
     this.selectedTabBackgroundColor,
     this.unSelectedTabBackgroundColor,
     this.selectedBorderColor,
+    this.barBuilder,
   }) : super(key: key);
 
   static RxString tablabelGetter(String peerId) {
@@ -525,13 +528,13 @@ class _DesktopTabState extends State<DesktopTab>
         if (stateGlobal.showTabBar.isTrue &&
             !(kUseCompatibleUiMode && isHideSingleItem())) {
           final showBottomDivider = _showTabBarBottomDivider(tabType);
+          final barHeight = widget.barBuilder != null ? 36.0 : _kTabBarHeight;
           return SizedBox(
-            height: _kTabBarHeight,
+            height: barHeight,
             child: Column(
               children: [
                 SizedBox(
-                  height:
-                      showBottomDivider ? _kTabBarHeight - 1 : _kTabBarHeight,
+                  height: showBottomDivider ? barHeight - 1 : barHeight,
                   child: _buildBar(),
                 ),
                 if (showBottomDivider)
@@ -620,7 +623,9 @@ class _DesktopTabState extends State<DesktopTab>
                               .then((value) => stateGlobal.setMaximized(value));
                         }
                       }
-                    : (isIncomingHomePage ? () {} : null), // Keep tap recognizer for Windows touch.
+                    : (isIncomingHomePage
+                        ? () {}
+                        : null), // Keep tap recognizer for Windows touch.
                 onPanStart: (_) => startDragging(isMainWindow),
                 onPanCancel: () {
                   // We want to disable dragging of the tab area in the tab bar.
@@ -678,19 +683,20 @@ class _DesktopTabState extends State<DesktopTab>
                             },
                             child: tabType == DesktopTabType.main
                                 ? const SizedBox.expand()
-                                : _ListView(
-                              controller: controller,
-                              invisibleTabKeys: invisibleTabKeys,
-                              tabBuilder: tabBuilder,
-                              tabMenuBuilder: tabMenuBuilder,
-                              labelGetter: labelGetter,
-                              maxLabelWidth: maxLabelWidth,
-                              selectedTabBackgroundColor:
-                                  selectedTabBackgroundColor,
-                              unSelectedTabBackgroundColor:
-                                  unSelectedTabBackgroundColor,
-                              selectedBorderColor: selectedBorderColor,
-                            ))),
+                                : widget.barBuilder?.call() ??
+                                    _ListView(
+                                      controller: controller,
+                                      invisibleTabKeys: invisibleTabKeys,
+                                      tabBuilder: tabBuilder,
+                                      tabMenuBuilder: tabMenuBuilder,
+                                      labelGetter: labelGetter,
+                                      maxLabelWidth: maxLabelWidth,
+                                      selectedTabBackgroundColor:
+                                          selectedTabBackgroundColor,
+                                      unSelectedTabBackgroundColor:
+                                          unSelectedTabBackgroundColor,
+                                      selectedBorderColor: selectedBorderColor,
+                                    ))),
                   ],
                 ))),
         // hide simulated action buttons when we in compatible ui mode, because of reusing system title bar.

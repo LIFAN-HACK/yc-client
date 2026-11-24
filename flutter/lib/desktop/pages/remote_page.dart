@@ -21,6 +21,7 @@ import '../../models/shortcut_model.dart';
 import '../../common/shared_state.dart';
 import '../../utils/image.dart';
 import '../widgets/remote_toolbar.dart';
+import '../widgets/yc_window_fit.dart';
 import '../widgets/kb_layout_type_chooser.dart';
 import '../widgets/tabbar_widget.dart';
 import 'macos_full_screen_focus_recovery.dart';
@@ -130,6 +131,7 @@ class _RemotePageState extends State<RemotePage>
   Function(bool)? _onEnterOrLeaveImage4Toolbar;
 
   late FFI _ffi;
+  late final YcWindowFit _windowFit;
   Worker? _waylandKeyboardModeWorker;
   bool _waylandKeyboardModeNormalized = false;
   bool _waylandKeyboardModeNormalizing = false;
@@ -151,6 +153,7 @@ class _RemotePageState extends State<RemotePage>
   void initState() {
     super.initState();
     _ffi = FFI(widget.sessionId);
+    _windowFit = YcWindowFit(_ffi);
     if (isMacOS) {
       // SchedulerBinding.instance.lifecycleState is null in the first connection in a new window.
       _macOSLifecycleState = SchedulerBinding.instance.lifecycleState;
@@ -663,6 +666,7 @@ class _RemotePageState extends State<RemotePage>
       _tabStateSubscription?.cancel();
       WidgetsBinding.instance.removeObserver(this);
     }
+    _windowFit.dispose();
     super.dispose();
     debugPrint("REMOTE PAGE dispose session $sessionId ${widget.id}");
 
@@ -759,7 +763,10 @@ class _RemotePageState extends State<RemotePage>
                     }
                   },
                   inputModel: _ffi.inputModel,
-                  child: getBodyForDesktop(context))),
+                  child: LayoutBuilder(builder: (context, box) {
+                    _windowFit.onCanvasSize(box.biggest);
+                    return getBodyForDesktop(context);
+                  }))),
           Stack(
             children: [
               _ffi.ffiModel.pi.isSet.isTrue &&
@@ -785,7 +792,10 @@ class _RemotePageState extends State<RemotePage>
               // Use Overlay to enable rebuild every time on menu button click.
               // Hide toolbar when relative mouse mode is active to prevent
               // cursor from escaping to toolbar area.
-              Obx(() => _ffi.inputModel.relativeMouseMode.value
+              // YC: the title bar carries the control centre; the floating toolbar is
+              // only for full screen, where that bar is hidden.
+              Obx(() => _ffi.inputModel.relativeMouseMode.value ||
+                      stateGlobal.showTabBar.isTrue
                   ? const Offstage()
                   : _ffi.ffiModel.pi.isSet.isTrue
                       ? Overlay(initialEntries: [

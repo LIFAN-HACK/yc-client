@@ -9,6 +9,8 @@ import 'package:flutter_hbb/common/widgets/keyboard_shortcuts/display.dart';
 import 'package:flutter_hbb/common/widgets/toolbar.dart';
 import 'package:flutter_hbb/models/chat_model.dart';
 import 'package:flutter_hbb/models/state_model.dart';
+import 'package:flutter_hbb/models/yc_team.dart';
+import 'package:flutter_hbb/desktop/widgets/yc_window_fit.dart';
 import 'package:flutter_hbb/consts.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
@@ -835,23 +837,8 @@ class _RemoteToolbarState extends State<RemoteToolbar> {
     }));
 
     // YC: one "控制中心" menu holds what the stock toolbar spread over a row of icons.
-    final centerItems = <Widget>[
-      _ControlMenu(id: widget.id, ffi: widget.ffi, state: widget.state),
-      _DisplayMenu(
-        id: widget.id,
-        ffi: widget.ffi,
-        state: widget.state,
-        setFullscreen: _setFullscreen,
-      ),
-      // Do not show keyboard for camera connection type.
-      if (widget.ffi.connType == ConnType.defaultConn)
-        _KeyboardMenu(id: widget.id, ffi: widget.ffi),
-      _ChatMenu(id: widget.id, ffi: widget.ffi),
-      if (!isWeb) _VoiceCallMenu(id: widget.id, ffi: widget.ffi),
-      if (!isWeb) _RecordMenu(),
-      Divider(),
-      _CloseMenu(id: widget.id, ffi: widget.ffi),
-    ];
+    final centerItems = _controlCenterItems(
+        widget.id, widget.ffi, widget.state, _setFullscreen);
     toolbarItems.add(_ControlCenter(ffi: widget.ffi, children: centerItems));
     toolbarItems.add(_CloseMenu(id: widget.id, ffi: widget.ffi));
     final toolbarBorderRadius = BorderRadius.all(Radius.circular(4.0));
@@ -1831,26 +1818,6 @@ class _DisplayMenuState extends State<_DisplayMenu> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          group('画质', Icons.hd_outlined,
-              (_) => [
-                    qualityPresets(),
-                    Divider(),
-                    codec(),
-                    Divider(),
-                    MenuButton(
-                        child: Text('改走中转线路重连'),
-                        onPressed: () => ffi.ffiModel
-                            .reconnect(ffi.dialogManager, ffi.sessionId, true),
-                        ffi: ffi),
-                  ]),
-          group(
-              '窗口',
-              Icons.aspect_ratio_rounded,
-              (state) => [
-                    _screenAdjustor.adjustWindow(context),
-                    viewStyle(customPercent: _customPercent),
-                    scrollStyle(state, colorScheme),
-                  ]),
           if (isDefault)
             group(
                 '显示屏',
@@ -1869,6 +1836,43 @@ class _DisplayMenuState extends State<_DisplayMenu> {
                           child: Text(translate("Virtual display")),
                         ),
                     ]),
+          group(
+              '画质',
+              Icons.hd_outlined,
+              (_) => [
+                    qualityPresets(),
+                    Divider(),
+                    codec(),
+                    Divider(),
+                    MenuButton(
+                        child: Text('改走中转线路重连'),
+                        onPressed: () => ffi.ffiModel
+                            .reconnect(ffi.dialogManager, ffi.sessionId, true),
+                        ffi: ffi),
+                  ]),
+          group(
+              '窗口',
+              Icons.aspect_ratio_rounded,
+              (state) => [
+                    viewStyle(customPercent: _customPercent),
+                    scrollStyle(state, colorScheme),
+                    Divider(),
+                    CkbMenuButton(
+                        value:
+                            bind.mainGetLocalOption(key: kYcFitWindow) != 'N',
+                        onChanged: (v) => bind.mainSetLocalOption(
+                            key: kYcFitWindow, value: v == false ? 'N' : ''),
+                        child: Text('窗口跟随对方屏幕比例'),
+                        ffi: ffi),
+                    _screenAdjustor.adjustWindow(context),
+                    Divider(),
+                    MenuButton(
+                        child: Text(
+                            stateGlobal.fullscreen.isTrue ? '退出全屏' : '进入全屏'),
+                        onPressed: () => widget
+                            .setFullscreen(stateGlobal.fullscreen.isFalse),
+                        ffi: ffi),
+                  ]),
           if (isDefault)
             group('鼠标', Icons.mouse_outlined, (_) => [cursorToggles()]),
           group('安全与更多', Icons.shield_outlined, (state) {
@@ -3430,7 +3434,12 @@ Widget _centerIcon(BuildContext context, Widget? icon, String? svg) {
 class _ControlCenter extends StatefulWidget {
   final FFI ffi;
   final List<Widget> children;
-  const _ControlCenter({Key? key, required this.ffi, required this.children})
+  final bool compact;
+  const _ControlCenter(
+      {Key? key,
+      required this.ffi,
+      required this.children,
+      this.compact = false})
       : super(key: key);
 
   @override
@@ -3442,8 +3451,9 @@ class _ControlCenterState extends State<_ControlCenter> {
 
   @override
   Widget build(BuildContext context) {
+    final h = widget.compact ? 26.0 : _ToolbarTheme.buttonSize;
     final button = SizedBox(
-        height: _ToolbarTheme.buttonSize,
+        height: h,
         child: SubmenuButton(
             menuStyle: _ToolbarTheme.defaultMenuStyle(context),
             style: _ToolbarTheme.defaultMenuButtonStyle,
@@ -3452,7 +3462,7 @@ class _ControlCenterState extends State<_ControlCenter> {
                 type: MaterialType.transparency,
                 child: Ink(
                     padding: const EdgeInsets.symmetric(horizontal: 12),
-                    height: _ToolbarTheme.buttonSize,
+                    height: h,
                     decoration: BoxDecoration(
                       borderRadius:
                           BorderRadius.circular(_ToolbarTheme.iconRadius),
@@ -3476,8 +3486,237 @@ class _ControlCenterState extends State<_ControlCenter> {
     return MenuBar(children: [
       button.marginSymmetric(
           horizontal: _ToolbarTheme.buttonHMargin,
-          vertical: _ToolbarTheme.buttonVMargin)
+          vertical: widget.compact ? 0 : _ToolbarTheme.buttonVMargin)
     ]);
+  }
+}
+
+List<Widget> _controlCenterItems(String id, FFI ffi, ToolbarState state,
+        void Function(bool) setFullscreen) =>
+    [
+      _DisplayMenu(
+          id: id, ffi: ffi, state: state, setFullscreen: setFullscreen),
+      // Do not show keyboard for camera connection type.
+      if (ffi.connType == ConnType.defaultConn) _KeyboardMenu(id: id, ffi: ffi),
+      _ControlMenu(id: id, ffi: ffi, state: state),
+      _ChatMenu(id: id, ffi: ffi),
+      if (!isWeb) _VoiceCallMenu(id: id, ffi: ffi),
+      if (!isWeb) _RecordMenu(),
+      Divider(),
+      _CloseMenu(id: id, ffi: ffi),
+    ];
+
+/// YC: the session window's title bar, in place of the stock tab and floating toolbar: the
+/// device, its displays, how the link is doing, and the control centre.
+class SessionTitleBar extends StatefulWidget {
+  final String id;
+  final FFI? Function() resolveFfi;
+  final ToolbarState state;
+  const SessionTitleBar(
+      {Key? key,
+      required this.id,
+      required this.resolveFfi,
+      required this.state})
+      : super(key: key);
+
+  @override
+  State<SessionTitleBar> createState() => _SessionTitleBarState();
+}
+
+class _SessionTitleBarState extends State<SessionTitleBar> {
+  final _start = DateTime.now();
+  Timer? _tick;
+  FFI? _ffi;
+  String _name = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _ffi = _resolve();
+    _tick = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted) return;
+      setState(() => _ffi ??= _resolve());
+    });
+    _loadName();
+  }
+
+  FFI? _resolve() {
+    try {
+      return widget.resolveFfi();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> _loadName() async {
+    try {
+      final list = await YcTeam.devices();
+      for (final d in list) {
+        if (d.id == widget.id && d.name.isNotEmpty) {
+          if (mounted) setState(() => _name = d.name);
+          return;
+        }
+      }
+    } catch (_) {}
+  }
+
+  @override
+  void dispose() {
+    _tick?.cancel();
+    super.dispose();
+  }
+
+  ThemeData _menuTheme(BuildContext context) => Theme.of(context).copyWith(
+        menuButtonTheme: MenuButtonThemeData(
+          style: ButtonStyle(
+            minimumSize: MaterialStatePropertyAll(Size(64, 32)),
+            textStyle: MaterialStatePropertyAll(
+              TextStyle(fontWeight: FontWeight.normal),
+            ),
+            shape: MaterialStatePropertyAll(RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(
+                    _ToolbarTheme.menuButtonBorderRadius))),
+          ),
+        ),
+        dividerTheme: DividerThemeData(
+          space: _ToolbarTheme.dividerSpaceToAction,
+          color: _ToolbarTheme.dividerColor(context),
+        ),
+        menuBarTheme: MenuBarThemeData(
+            style: MenuStyle(
+          padding: MaterialStatePropertyAll(EdgeInsets.zero),
+          elevation: MaterialStatePropertyAll(0),
+          backgroundColor: MaterialStatePropertyAll(Colors.transparent),
+          shape: MaterialStatePropertyAll(BeveledRectangleBorder()),
+        )),
+      );
+
+  String _elapsed() {
+    final s = DateTime.now().difference(_start).inSeconds;
+    String two(int v) => v.toString().padLeft(2, '0');
+    return '${two(s ~/ 3600)}:${two(s ~/ 60 % 60)}:${two(s % 60)}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ffi = _ffi;
+    const sub = Color(0xFFA4A9B6);
+    final nameStyle =
+        const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600);
+    if (ffi == null) {
+      return Align(
+        alignment: Alignment.centerLeft,
+        child: Text(_name.isNotEmpty ? _name : widget.id, style: nameStyle),
+      );
+    }
+    return AnimatedBuilder(
+      animation: Listenable.merge([ffi.ffiModel, ffi.qualityMonitorModel]),
+      builder: (context, _) {
+        final pi = ffi.ffiModel.pi;
+        final name = _name.isNotEmpty
+            ? _name
+            : (pi.hostname.isNotEmpty ? pi.hostname : widget.id);
+        final q = ffi.qualityMonitorModel.data;
+        final delay =
+            int.tryParse((q.delay ?? '').replaceAll(RegExp(r'[^0-9]'), ''));
+        final fps = (q.fps ?? '').split(' ').first;
+        final Color dot;
+        if (delay == null) {
+          dot = sub;
+        } else if (delay < 80) {
+          dot = const Color(0xFF3DDC84);
+        } else if (delay < 180) {
+          dot = const Color(0xFFF5B74E);
+        } else {
+          dot = const Color(0xFFFF6B6B);
+        }
+        final parts = <String>[
+          if (delay != null) '$delay ms',
+          if (fps.isNotEmpty && fps != '0') '$fps 帧',
+          _elapsed(),
+        ];
+        final direct = ffi.ffiModel.direct;
+        final tip = <String>[
+          if (direct != null) '线路：${direct ? '直连' : '中转'}',
+          if ((q.speed ?? '').isNotEmpty) '速度：${q.speed}',
+          if ((q.codecFormat ?? '').isNotEmpty) '编码：${q.codecFormat}',
+        ].join('\n');
+        final displays = pi.displays.length;
+        return Row(children: [
+          Flexible(
+            child:
+                Text(name, overflow: TextOverflow.ellipsis, style: nameStyle),
+          ),
+          const SizedBox(width: 10),
+          if (displays > 1)
+            for (var i = 0; i < displays; i++)
+              Padding(
+                padding: const EdgeInsets.only(right: 4),
+                child: _DisplayChip(
+                  label: '显示屏 ${i + 1}',
+                  selected: pi.currentDisplay == i,
+                  onTap: () => openMonitorInTheSameTab(i, ffi, pi),
+                ),
+              ),
+          if (displays > 1) const SizedBox(width: 6),
+          Tooltip(
+            message: tip.isEmpty ? '正在测量' : tip,
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              Container(
+                  width: 7,
+                  height: 7,
+                  decoration:
+                      BoxDecoration(color: dot, shape: BoxShape.circle)),
+              const SizedBox(width: 6),
+              Text(parts.join(' · '),
+                  style: const TextStyle(
+                      fontSize: 12,
+                      color: sub,
+                      fontFeatures: [FontFeature.tabularFigures()])),
+            ]),
+          ),
+          const Spacer(),
+          Theme(
+            data: _menuTheme(context),
+            child: _ControlCenter(
+                ffi: ffi,
+                compact: true,
+                children: _controlCenterItems(widget.id, ffi, widget.state,
+                    (v) => stateGlobal.setFullscreen(v))),
+          ),
+          const SizedBox(width: 6),
+        ]);
+      },
+    );
+  }
+}
+
+class _DisplayChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  const _DisplayChip(
+      {required this.label, required this.selected, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    const fg = Color(0xFFECEEF3);
+    return Material(
+      color: selected ? fg.withOpacity(0.10) : Colors.transparent,
+      borderRadius: BorderRadius.circular(7),
+      child: InkWell(
+        onTap: selected ? null : onTap,
+        borderRadius: BorderRadius.circular(7),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          child: Text(label,
+              style: TextStyle(
+                  fontSize: 12,
+                  color: selected ? fg : fg.withOpacity(0.6),
+                  fontWeight: selected ? FontWeight.w600 : FontWeight.w400)),
+        ),
+      ),
+    );
   }
 }
 
