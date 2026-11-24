@@ -1116,80 +1116,157 @@ class _SignInState extends State<_SignIn> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         if (widget.notice != null) _NoticeStrip(widget.notice!),
-        Expanded(
-          child: Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 330),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Center(
-                        child: Image.asset('assets/mark_white.png',
-                            width: 64, height: 64)),
-                    const SizedBox(height: 20),
-                    const Text('登录 OpenDesk',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                            fontSize: 23, fontWeight: FontWeight.w700)),
-                    const SizedBox(height: 8),
-                    const Text('登录同一账号的设备可以互相远程控制',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 13, color: _C.sub)),
-                    const SizedBox(height: 28),
-                    TextField(
-                      controller: _user,
-                      autofocus: true,
-                      enabled: !_busy,
-                      cursorColor: _C.accent,
-                      style: const TextStyle(fontSize: 14, color: _C.text),
-                      textInputAction: TextInputAction.next,
-                      onSubmitted: (_) => _passFocus.requestFocus(),
-                      decoration: _field('账号'),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: _pass,
-                      focusNode: _passFocus,
-                      enabled: !_busy,
-                      obscureText: true,
-                      cursorColor: _C.accent,
-                      style: const TextStyle(fontSize: 14, color: _C.text),
-                      onSubmitted: (_) => _submit(),
-                      decoration: _field('密码'),
-                    ),
-                    SizedBox(
-                      height: 32,
-                      child: Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text(_error ?? '',
-                            style: const TextStyle(
-                                fontSize: 12.5, color: _C.danger)),
-                      ),
-                    ),
-                    _PrimaryBtn(
-                        label: _busy ? '正在登录…' : '登录',
-                        width: double.infinity,
-                        onTap: _busy ? null : _submit),
-                    const SizedBox(height: 16),
-                    Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                      const Text('没有账号？请联系管理员开通',
-                          style: TextStyle(fontSize: 12, color: _C.dim)),
-                      const SizedBox(width: 6),
-                      _IconBtn(
-                          icon: Icons.settings_outlined,
-                          tip: '设置',
-                          onTap: () => DesktopTabPage.onAddSetting()),
-                    ]),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
+        Expanded(child: LayoutBuilder(builder: (context, box) {
+          final split = box.maxWidth >= 780;
+          return Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            if (split) const SizedBox(width: 440, child: _Poster()),
+            Expanded(child: _form(split)),
+          ]);
+        })),
       ],
     );
+  }
+
+  Widget _form(bool split) {
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 330),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (!split) ...[
+                Center(
+                    child: Image.asset('assets/mark_white.png',
+                        width: 64, height: 64)),
+                const SizedBox(height: 20),
+              ],
+              Text(split ? '登录' : '登录 OpenDesk',
+                  textAlign: split ? TextAlign.left : TextAlign.center,
+                  style: const TextStyle(
+                      fontSize: 24, fontWeight: FontWeight.w700)),
+              const SizedBox(height: 8),
+              Text('登录同一账号的设备可以互相远程控制',
+                  textAlign: split ? TextAlign.left : TextAlign.center,
+                  style: const TextStyle(fontSize: 13, color: _C.sub)),
+              const SizedBox(height: 28),
+              TextField(
+                controller: _user,
+                autofocus: true,
+                enabled: !_busy,
+                cursorColor: _C.accent,
+                style: const TextStyle(fontSize: 14, color: _C.text),
+                textInputAction: TextInputAction.next,
+                onSubmitted: (_) => _passFocus.requestFocus(),
+                decoration: _field('账号'),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _pass,
+                focusNode: _passFocus,
+                enabled: !_busy,
+                obscureText: true,
+                cursorColor: _C.accent,
+                style: const TextStyle(fontSize: 14, color: _C.text),
+                onSubmitted: (_) => _submit(),
+                decoration: _field('密码'),
+              ),
+              SizedBox(
+                height: 32,
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(_error ?? '',
+                      style: const TextStyle(fontSize: 12.5, color: _C.danger)),
+                ),
+              ),
+              _PrimaryBtn(
+                  label: _busy ? '正在登录…' : '登录',
+                  width: double.infinity,
+                  onTap: _busy ? null : _submit),
+              const SizedBox(height: 16),
+              Row(
+                  mainAxisAlignment: split
+                      ? MainAxisAlignment.start
+                      : MainAxisAlignment.center,
+                  children: [
+                    const Text('没有账号？请联系管理员开通',
+                        style: TextStyle(fontSize: 12, color: _C.dim)),
+                    const SizedBox(width: 6),
+                    _IconBtn(
+                        icon: Icons.settings_outlined,
+                        tip: '设置',
+                        onTap: () => DesktopTabPage.onAddSetting()),
+                  ]),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _Poster extends StatelessWidget {
+  const _Poster();
+
+  static const _ink = Color(0xFF3A2018);
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(fit: StackFit.expand, children: [
+      const ColoredBox(color: Color(0xFFF3A48C)),
+      Image.asset('assets/login_poster.jpg',
+          fit: BoxFit.cover, alignment: const Alignment(0, -0.1)),
+      const Positioned(
+        left: 0,
+        right: 0,
+        bottom: 0,
+        height: 230,
+        child: DecoratedBox(
+            decoration: BoxDecoration(
+                gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    stops: [
+              0,
+              0.55,
+              1
+            ],
+                    colors: [
+              Color(0x00FFF4E8),
+              Color(0xDBFFF4E8),
+              Color(0xF5FFF4E8)
+            ]))),
+      ),
+      const Positioned(
+          left: 36,
+          top: 34,
+          child: Text('OpenDesk',
+              style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.3,
+                  color: _ink))),
+      const Positioned(
+        left: 36,
+        right: 36,
+        bottom: 36,
+        child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('每一台电脑，\n都在你手边。',
+                  style: TextStyle(
+                      fontSize: 26,
+                      height: 1.3,
+                      fontWeight: FontWeight.w700,
+                      color: _ink)),
+              SizedBox(height: 10),
+              Text('登录即互联 · 免密进入 · 自己的服务器',
+                  style: TextStyle(fontSize: 13, color: Color(0xFF6B3A2C))),
+            ]),
+      ),
+    ]);
   }
 }
