@@ -1832,7 +1832,17 @@ class _DisplayMenuState extends State<_DisplayMenu> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           group('画质', Icons.hd_outlined,
-              (_) => [qualityPresets(), Divider(), codec()]),
+              (_) => [
+                    qualityPresets(),
+                    Divider(),
+                    codec(),
+                    Divider(),
+                    MenuButton(
+                        child: Text('改走中转线路重连'),
+                        onPressed: () => ffi.ffiModel
+                            .reconnect(ffi.dialogManager, ffi.sessionId, true),
+                        ffi: ffi),
+                  ]),
           group(
               '窗口',
               Icons.aspect_ratio_rounded,

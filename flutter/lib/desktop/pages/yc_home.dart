@@ -90,6 +90,8 @@ class _YcHomeState extends State<YcHome> {
   bool _failed = false;
   String _query = '';
   bool _collapsed = false;
+  Set<String> _pinned = {};
+  DateTime? _controlledSince;
   Timer? _timer;
   Timer? _statusTimer;
   Worker? _userWatch;
@@ -97,6 +99,11 @@ class _YcHomeState extends State<YcHome> {
   @override
   void initState() {
     super.initState();
+    _pinned = bind
+        .mainGetLocalOption(key: 'yc-pinned')
+        .split(',')
+        .where((e) => e.isNotEmpty)
+        .toSet();
     bind.mainGetMyId().then((v) {
       if (mounted) setState(() => _myId = v);
     });
@@ -115,7 +122,14 @@ class _YcHomeState extends State<YcHome> {
           ? SvcStatus.connecting
           : (n == 1 ? SvcStatus.ready : SvcStatus.notReady);
       final count = status['video_conn_count'];
-      if (count is int) stateGlobal.videoConnCount.value = count;
+      if (count is int) {
+        if (count > 0) {
+          _controlledSince ??= DateTime.now();
+        } else {
+          _controlledSince = null;
+        }
+        stateGlobal.videoConnCount.value = count;
+      }
     } catch (_) {}
   }
 
@@ -141,10 +155,13 @@ class _YcHomeState extends State<YcHome> {
     try {
       final list = await YcTeam.devices();
       if (!mounted) return;
-      // This computer first, then online ones, then by name.
+      // This computer first, then pinned ones, then online ones, then by name.
       list.sort((a, b) {
         final am = a.id == _myId ? 0 : 1, bm = b.id == _myId ? 0 : 1;
         if (am != bm) return am - bm;
+        final ap = _pinned.contains(a.id) ? 0 : 1,
+            bp = _pinned.contains(b.id) ? 0 : 1;
+        if (ap != bp) return ap - bp;
         if (a.online != b.online) return a.online ? -1 : 1;
         return a.name.toLowerCase().compareTo(b.name.toLowerCase());
       });
@@ -166,6 +183,80 @@ class _YcHomeState extends State<YcHome> {
         _failed = true;
       });
     }
+  }
+
+  /// Opens the device's desktop. The session reads `yc-view-once` when it starts, so the
+  /// choice between controlling and only watching is made here, not remembered per device.
+  Future<void> _open(YcDevice d, {bool viewOnly = false}) async {
+    if (d.id == _myId || !d.online) return;
+    await bind.mainSetLocalOption(
+        key: 'yc-view-once', value: viewOnly ? d.id : '');
+    if (mounted) connect(context, d.id);
+  }
+
+  Future<void> _togglePin(YcDevice d) async {
+    setState(() {
+      if (!_pinned.remove(d.id)) _pinned.add(d.id);
+    });
+    await bind.mainSetLocalOption(key: 'yc-pinned', value: _pinned.join(','));
+    await _refresh();
+  }
+
+  void _copyId(YcDevice d) {
+    Clipboard.setData(ClipboardData(text: d.id));
+    showToast('已复制设备码');
+  }
+
+  Future<void> _disconnectAll() async {
+    await start_service(false);
+    await Future.delayed(const Duration(milliseconds: 1500));
+    await start_service(true);
+    showToast('已断开');
+  }
+
+  Future<void> _rowMenu(YcDevice d, Offset at) async {
+    final isMe = d.id == _myId;
+    final canOpen = d.online && !isMe;
+    final size = MediaQuery.of(context).size;
+    PopupMenuItem<String> item(String v, String t,
+            {bool on = true, Color? color}) =>
+        PopupMenuItem(
+            value: v,
+            enabled: on,
+            height: 36,
+            child: Text(t,
+                style: TextStyle(
+                    fontSize: 13, color: on ? (color ?? _C.text) : _C.dim)));
+    final v = await showMenu<String>(
+      context: context,
+      color: _C.raised,
+      elevation: 8,
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+          side: const BorderSide(color: _C.line)),
+      position: RelativeRect.fromLTRB(
+          at.dx, at.dy, size.width - at.dx, size.height - at.dy),
+      items: [
+        if (!isMe) item('open', '进入桌面', on: canOpen),
+        if (!isMe) item('view', '观看模式', on: canOpen),
+        if (!isMe) item('file', '文件传输', on: canOpen),
+        if (!isMe) const PopupMenuDivider(height: 8),
+        item('rename', '重命名'),
+        if (!isMe) item('pin', _pinned.contains(d.id) ? '取消置顶' : '置顶'),
+        item('copy', '复制设备码'),
+        if (!isMe) const PopupMenuDivider(height: 8),
+        if (!isMe) item('remove', '从账号移除', color: _C.danger),
+      ],
+    );
+    if (!mounted || v == null) return;
+    setState(() => _selected = d.id);
+    if (v == 'open') _open(d);
+    if (v == 'view') _open(d, viewOnly: true);
+    if (v == 'file') connect(context, d.id, isFileTransfer: true);
+    if (v == 'rename') _rename(d);
+    if (v == 'pin') _togglePin(d);
+    if (v == 'copy') _copyId(d);
+    if (v == 'remove') _remove(d);
   }
 
   Future<void> _rename(YcDevice d) async {
@@ -295,6 +386,10 @@ class _YcHomeState extends State<YcHome> {
                     : _DevicePage(
                         device: d,
                         isMe: d.id == _myId,
+                        pinned: _pinned.contains(d.id),
+                        onOpen: () => _open(d),
+                        onView: () => _open(d, viewOnly: true),
+                        onPin: () => _togglePin(d),
                         onRename: () => _rename(d),
                         onRemove: () => _remove(d)),
               ),
@@ -344,19 +439,47 @@ class _YcHomeState extends State<YcHome> {
               padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
               decoration: BoxDecoration(
                   gradient: _C.grad, borderRadius: BorderRadius.circular(12)),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('本机被控中',
-                      style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          color: _C.ink)),
-                  const SizedBox(height: 4),
-                  Text('当前有 $n 台设备正在控制此电脑',
-                      style: const TextStyle(fontSize: 11.5, color: _C.ink)),
-                ],
-              ),
+              child: Row(children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('本机被控中',
+                          style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: _C.ink)),
+                      const SizedBox(height: 4),
+                      Row(children: [
+                        Flexible(
+                          child: Text('$n 台设备 · ',
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                  fontSize: 11.5, color: _C.ink)),
+                        ),
+                        _Elapsed(since: _controlledSince ?? DateTime.now()),
+                      ]),
+                    ],
+                  ),
+                ),
+                Material(
+                  color: _C.ink,
+                  borderRadius: BorderRadius.circular(8),
+                  child: InkWell(
+                    onTap: _disconnectAll,
+                    borderRadius: BorderRadius.circular(8),
+                    child: const Padding(
+                      padding:
+                          EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                      child: Text('断开',
+                          style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: _C.text)),
+                    ),
+                  ),
+                ),
+              ]),
             );
           }),
           Padding(
@@ -422,12 +545,10 @@ class _YcHomeState extends State<YcHome> {
                             device: d,
                             isMe: d.id == _myId,
                             selected: d.id == _selected,
+                            pinned: _pinned.contains(d.id),
                             onTap: () => setState(() => _selected = d.id),
-                            onOpen: () {
-                              if (d.id != _myId && d.online) {
-                                connect(context, d.id);
-                              }
-                            },
+                            onOpen: () => _open(d),
+                            onMenu: (at) => _rowMenu(d, at),
                           );
                         })),
           ),
@@ -528,12 +649,13 @@ class _YcHomeState extends State<YcHome> {
           above: true,
           items: {
             'settings': '设置',
-            if (stopped.value) 'resume': '恢复本机被控',
+            if (stopped.value) 'resume': '恢复本机被控' else 'pause': '暂停本机被控',
             'logout': '退出登录',
           },
           onSelected: (v) {
             if (v == 'settings') DesktopTabPage.onAddSetting();
             if (v == 'resume') start_service(true);
+            if (v == 'pause') start_service(false);
             if (v == 'logout') gFFI.userModel.logOut();
           },
         ),
@@ -642,14 +764,18 @@ class _DeviceRow extends StatelessWidget {
   final YcDevice device;
   final bool isMe;
   final bool selected;
+  final bool pinned;
   final VoidCallback onTap;
   final VoidCallback onOpen;
+  final void Function(Offset) onMenu;
   const _DeviceRow(
       {required this.device,
       required this.isMe,
       required this.selected,
+      required this.pinned,
       required this.onTap,
-      required this.onOpen});
+      required this.onOpen,
+      required this.onMenu});
 
   @override
   Widget build(BuildContext context) {
@@ -662,6 +788,7 @@ class _DeviceRow extends StatelessWidget {
         child: InkWell(
           onTap: onTap,
           onDoubleTap: onOpen,
+          onSecondaryTapDown: (e) => onMenu(e.globalPosition),
           borderRadius: BorderRadius.circular(10),
           hoverColor: selected ? _C.raised : _C.hover,
           child: SizedBox(
@@ -690,6 +817,11 @@ class _DeviceRow extends StatelessWidget {
                             selected ? FontWeight.w600 : FontWeight.w500,
                         color: d.online ? _C.text : _C.dim)),
               ),
+              if (pinned && !isMe)
+                const Padding(
+                  padding: EdgeInsets.only(left: 6),
+                  child: Icon(Icons.push_pin_rounded, size: 12, color: _C.dim),
+                ),
               if (isMe)
                 Container(
                   margin: const EdgeInsets.only(left: 6),
@@ -721,11 +853,19 @@ class _DeviceRow extends StatelessWidget {
 class _DevicePage extends StatelessWidget {
   final YcDevice device;
   final bool isMe;
+  final bool pinned;
+  final VoidCallback onOpen;
+  final VoidCallback onView;
+  final VoidCallback onPin;
   final VoidCallback onRename;
   final VoidCallback onRemove;
   const _DevicePage(
       {required this.device,
       required this.isMe,
+      required this.pinned,
+      required this.onOpen,
+      required this.onView,
+      required this.onPin,
       required this.onRename,
       required this.onRemove});
 
@@ -798,10 +938,12 @@ class _DevicePage extends StatelessWidget {
                   items: {
                     'rename': '重命名',
                     'copy': '复制设备码',
+                    if (!isMe) 'pin': pinned ? '取消置顶' : '置顶',
                     if (!isMe) 'remove': '从账号移除',
                   },
                   onSelected: (v) {
                     if (v == 'rename') onRename();
+                    if (v == 'pin') onPin();
                     if (v == 'copy') _copy();
                     if (v == 'remove') onRemove();
                   },
@@ -838,9 +980,7 @@ class _DevicePage extends StatelessWidget {
                           if (!isMe)
                             _PrimaryBtn(
                                 label: d.online ? '进入桌面' : '设备离线',
-                                onTap: canOpen
-                                    ? () => connect(context, d.id)
-                                    : null),
+                                onTap: canOpen ? onOpen : null),
                           if (hint.isNotEmpty)
                             Padding(
                               padding: EdgeInsets.only(
@@ -864,6 +1004,11 @@ class _DevicePage extends StatelessWidget {
                                 ? () =>
                                     connect(context, d.id, isFileTransfer: true)
                                 : null),
+                        const _BarDivider(),
+                        _BarAction(
+                            icon: Icons.visibility_outlined,
+                            label: '观看模式',
+                            onTap: canOpen ? onView : null),
                         const _BarDivider(),
                         _BarAction(
                             icon: Icons.terminal_rounded,
@@ -907,6 +1052,41 @@ class _DevicePage extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _Elapsed extends StatefulWidget {
+  final DateTime since;
+  const _Elapsed({required this.since});
+
+  @override
+  State<_Elapsed> createState() => _ElapsedState();
+}
+
+class _ElapsedState extends State<_Elapsed> {
+  late final Timer _tick;
+
+  @override
+  void initState() {
+    super.initState();
+    _tick = Timer.periodic(const Duration(seconds: 1), (_) => setState(() {}));
+  }
+
+  @override
+  void dispose() {
+    _tick.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = DateTime.now().difference(widget.since).inSeconds;
+    String two(int v) => v.toString().padLeft(2, '0');
+    return Text('${two(s ~/ 3600)}:${two(s ~/ 60 % 60)}:${two(s % 60)}',
+        style: const TextStyle(
+            fontSize: 11.5,
+            color: _C.ink,
+            fontFeatures: [FontFeature.tabularFigures()]));
   }
 }
 

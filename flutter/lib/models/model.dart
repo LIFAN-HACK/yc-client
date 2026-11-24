@@ -1470,6 +1470,7 @@ class FfiModel with ChangeNotifier {
           peerId,
           bind.sessionGetToggleOptionSync(
               sessionId: sessionId, arg: kOptionToggleViewOnly));
+      _ycApplyViewChoice(peerId);
       setShowMyCursor(bind.sessionGetToggleOptionSync(
           sessionId: sessionId, arg: kOptionToggleShowMyCursor));
     }
@@ -1818,6 +1819,21 @@ class FfiModel with ChangeNotifier {
     } catch (e) {
       //
     }
+  }
+
+  bool _ycViewChoiceApplied = false;
+
+  /// YC: the home screen picks between controlling and watching for each visit, so the
+  /// per-peer remembered toggle is brought in line with that pick once per session.
+  void _ycApplyViewChoice(String peerId) {
+    if (_ycViewChoiceApplied || !isDesktop) return;
+    _ycViewChoiceApplied = true;
+    final want = bind.mainGetLocalOption(key: 'yc-view-once') == peerId;
+    if (want) bind.mainSetLocalOption(key: 'yc-view-once', value: '');
+    if (want == _viewOnly) return;
+    bind
+        .sessionToggleOption(sessionId: sessionId, value: kOptionToggleViewOnly)
+        .then((_) => setViewOnly(peerId, want));
   }
 
   void setViewOnly(String id, bool value) {
