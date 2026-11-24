@@ -14,6 +14,7 @@ import 'package:flutter_hbb/common/widgets/keyboard_shortcuts/page_body.dart';
 import 'package:flutter_hbb/desktop/pages/desktop_keyboard_shortcuts_page.dart';
 import 'package:flutter_hbb/desktop/pages/desktop_tab_page.dart';
 import 'package:flutter_hbb/desktop/widgets/remote_toolbar.dart';
+import 'package:flutter_hbb/desktop/widgets/tabbar_widget.dart';
 import 'package:flutter_hbb/mobile/widgets/dialog.dart';
 import 'package:flutter_hbb/models/platform_model.dart';
 import 'package:flutter_hbb/models/printer_model.dart';
@@ -189,31 +190,31 @@ class _DesktopSettingPageState extends State<DesktopSettingPage>
       switch (tab) {
         case SettingsTabKey.general:
           settingTabs.add(_TabInfo(
-              tab, 'General', Icons.settings_outlined, Icons.settings));
+              tab, '常规', Icons.settings_outlined, Icons.settings));
           break;
         case SettingsTabKey.safety:
-          settingTabs.add(_TabInfo(tab, 'Security',
+          settingTabs.add(_TabInfo(tab, '本机被控',
               Icons.enhanced_encryption_outlined, Icons.enhanced_encryption));
           break;
         case SettingsTabKey.network:
           settingTabs
-              .add(_TabInfo(tab, 'Network', Icons.link_outlined, Icons.link));
+              .add(_TabInfo(tab, '网络', Icons.link_outlined, Icons.link));
           break;
         case SettingsTabKey.display:
-          settingTabs.add(_TabInfo(tab, 'Display',
+          settingTabs.add(_TabInfo(tab, '画面与声音',
               Icons.desktop_windows_outlined, Icons.desktop_windows));
           break;
         case SettingsTabKey.account:
           settingTabs.add(
-              _TabInfo(tab, 'Account', Icons.person_outline, Icons.person));
+              _TabInfo(tab, '账号', Icons.person_outline, Icons.person));
           break;
         case SettingsTabKey.printer:
           settingTabs
-              .add(_TabInfo(tab, 'Printer', Icons.print_outlined, Icons.print));
+              .add(_TabInfo(tab, '打印机', Icons.print_outlined, Icons.print));
           break;
         case SettingsTabKey.about:
           settingTabs
-              .add(_TabInfo(tab, 'About', Icons.info_outline, Icons.info));
+              .add(_TabInfo(tab, '关于', Icons.info_outline, Icons.info));
           break;
       }
     }
@@ -277,7 +278,9 @@ class _DesktopSettingPageState extends State<DesktopSettingPage>
   Widget build(BuildContext context) {
     super.build(context);
     return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.background,
+      backgroundColor: isDesktop && Get.isDarkMode
+          ? const Color(0xFF0F1116)
+          : Theme.of(context).colorScheme.background,
       body: _buildBlock(
         children: <Widget>[
           SizedBox(
@@ -306,6 +309,26 @@ class _DesktopSettingPageState extends State<DesktopSettingPage>
   }
 
   Widget _header(BuildContext context) {
+    if (isDesktop) {
+      return SizedBox(
+        height: 60,
+        child: Row(children: [
+          const SizedBox(width: 10),
+          IconButton(
+            tooltip: '返回',
+            splashRadius: 18,
+            icon: const Icon(Icons.arrow_back_rounded, size: 18),
+            onPressed: () {
+              try {
+                Get.find<DesktopTabController>().closeBy(kTabLabelSettingPage);
+              } catch (_) {}
+            },
+          ),
+          const Text('设置',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+        ]),
+      );
+    }
     final settingsText = Text(
       translate('Settings'),
       textAlign: TextAlign.left,
@@ -355,6 +378,44 @@ class _DesktopSettingPageState extends State<DesktopSettingPage>
   Widget _listItem({required _TabInfo tab}) {
     return Obx(() {
       bool selected = tab.key == selectedTab.value;
+      if (isDesktop) {
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 1),
+          child: Material(
+            color: selected ? const Color(0xFF1B1E26) : Colors.transparent,
+            borderRadius: BorderRadius.circular(9),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(9),
+              onTap: () {
+                final index = DesktopSettingPage.tabKeys.indexOf(tab.key);
+                if (index == -1) return;
+                if (selectedTab.value != tab.key) controller.jumpToPage(index);
+                selectedTab.value = tab.key;
+              },
+              child: SizedBox(
+                height: 38,
+                child: Row(children: [
+                  const SizedBox(width: 12),
+                  Icon(selected ? tab.selected : tab.unselected,
+                      size: 17,
+                      color: selected
+                          ? const Color(0xFFECEEF3)
+                          : const Color(0xFFA4A9B6)),
+                  const SizedBox(width: 10),
+                  Text(tab.label,
+                      style: TextStyle(
+                          fontSize: 13.5,
+                          fontWeight:
+                              selected ? FontWeight.w600 : FontWeight.w400,
+                          color: selected
+                              ? const Color(0xFFECEEF3)
+                              : const Color(0xFFA4A9B6))),
+                ]),
+              ),
+            ),
+          ),
+        );
+      }
       return SizedBox(
         width: _kTabWidth,
         height: _kTabHeight,
@@ -2655,6 +2716,16 @@ Widget _Card(
         child: SizedBox(
           width: _kCardFixedWidth,
           child: Card(
+            elevation: isDesktop ? 0 : null,
+            color: isDesktop && Get.isDarkMode ? const Color(0xFF14161C) : null,
+            shape: isDesktop
+                ? RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    side: BorderSide(
+                        color: Get.isDarkMode
+                            ? const Color(0xFF22252E)
+                            : const Color(0x1F000000)))
+                : null,
             child: Column(
               children: [
                 Row(
@@ -2663,8 +2734,9 @@ Widget _Card(
                         child: Text(
                       translate(title),
                       textAlign: TextAlign.start,
-                      style: const TextStyle(
-                        fontSize: _kTitleFontSize,
+                      style: TextStyle(
+                        fontSize: isDesktop ? 15 : _kTitleFontSize,
+                        fontWeight: isDesktop ? FontWeight.w700 : null,
                       ),
                     )),
                     ...?title_suffix
