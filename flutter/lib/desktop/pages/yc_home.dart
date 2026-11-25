@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -35,24 +36,45 @@ class YcHome extends StatefulWidget {
 }
 
 class _C {
-  static const bg = Color(0xFF0B0C10);
-  static const side = Color(0xFF0F1116);
-  static const panel = Color(0xFF14161C);
-  static const raised = Color(0xFF1B1E26);
-  static const hover = Color(0xFF171A21);
-  static const line = Color(0xFF22252E);
-  static const text = Color(0xFFECEEF3);
-  static const sub = Color(0xFFA4A9B6);
-  static const dim = Color(0xFF6D7382);
-  static const accent = Color(0xFFECEEF3);
-  static const ink = Color(0xFF0B0D10);
-  static const online = Color(0xFF3DDC84);
-  static const danger = Color(0xFFFF6B6B);
+  static const bg = Color(0xFF121014);
+  static const side = Color(0xFF161316);
+  static const panel = Color(0xFF1A1719);
+  static const raised = Color(0xFF231F22);
+  static const hover = Color(0xFF1D1A1C);
+  static const line = Color(0xFF2A2629);
+  static const line2 = Color(0xFF2E2A2D);
+  static const text = Color(0xFFF5EFEA);
+  static const sub = Color(0xFFB3A9A3);
+  static const dim = Color(0xFF8C827C);
+  static const accent = Color(0xFFF28C6B);
+  static const ink = Color(0xFF1A1214);
+  static const online = Color(0xFF5FD38D);
+  static const danger = Color(0xFFFF8A8A);
   static const warn = Color(0xFFF5B74E);
   static const grad = LinearGradient(
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
-      colors: [Color(0xFFFFFFFF), Color(0xFFD9DCE4)]);
+      colors: [Color(0xFFF7A27F), Color(0xFFEE7A5A)]);
+  static const wallpaper = RadialGradient(
+      center: Alignment(0.7, -1.0),
+      radius: 1.35,
+      stops: [
+        0,
+        0.32,
+        0.66,
+        1
+      ],
+      colors: [
+        Color(0xFFF7A27F),
+        Color(0xFFD9667A),
+        Color(0xFF4A2A4F),
+        Color(0xFF1A1719)
+      ]);
+  static const wallpaperOff = RadialGradient(
+      center: Alignment(0.7, -1.0),
+      radius: 1.35,
+      stops: [0, 0.6, 1],
+      colors: [Color(0xFF5A5155), Color(0xFF2D282B), Color(0xFF1A1719)]);
 }
 
 String _lastSeen(int seconds) {
@@ -64,6 +86,16 @@ String _lastSeen(int seconds) {
     return '今天 $hm';
   }
   return '${t.month} 月 ${t.day} 日 $hm';
+}
+
+String _ago(int seconds) {
+  final d = DateTime.now()
+      .difference(DateTime.fromMillisecondsSinceEpoch(seconds * 1000));
+  if (d.inMinutes < 1) return '刚刚';
+  if (d.inHours < 1) return '${d.inMinutes} 分钟前';
+  if (d.inDays < 1) return '${d.inHours} 小时前';
+  if (d.inDays < 30) return '${d.inDays} 天前';
+  return '很久以前';
 }
 
 IconData _osIcon(String os) {
@@ -745,7 +777,12 @@ class _IconBtn extends StatelessWidget {
   final IconData icon;
   final String tip;
   final VoidCallback onTap;
-  const _IconBtn({required this.icon, required this.tip, required this.onTap});
+  final Color color;
+  const _IconBtn(
+      {required this.icon,
+      required this.tip,
+      required this.onTap,
+      this.color = _C.sub});
 
   @override
   Widget build(BuildContext context) {
@@ -758,7 +795,7 @@ class _IconBtn extends StatelessWidget {
         hoverColor: _C.raised,
         child: Padding(
           padding: const EdgeInsets.all(7),
-          child: Icon(icon, size: 17, color: _C.sub),
+          child: Icon(icon, size: 17, color: color),
         ),
       ),
     );
@@ -770,11 +807,13 @@ class _Menu extends StatelessWidget {
   final Map<String, String> items;
   final void Function(String) onSelected;
   final bool above;
+  final Color iconColor;
   const _Menu(
       {required this.icon,
       required this.items,
       required this.onSelected,
-      this.above = false});
+      this.above = false,
+      this.iconColor = _C.sub});
 
   @override
   Widget build(BuildContext context) {
@@ -790,7 +829,7 @@ class _Menu extends StatelessWidget {
         shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(10),
             side: const BorderSide(color: _C.line)),
-        icon: Icon(icon, size: 18, color: _C.sub),
+        icon: Icon(icon, size: 18, color: iconColor),
         onSelected: onSelected,
         itemBuilder: (_) => [
           for (final e in items.entries)
@@ -828,31 +867,37 @@ class _DeviceRow extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
       child: Material(
-        color: selected ? _C.raised : Colors.transparent,
-        borderRadius: BorderRadius.circular(10),
+        color: selected ? const Color(0xFF2A2427) : Colors.transparent,
+        borderRadius: BorderRadius.circular(12),
         child: InkWell(
           onTap: onTap,
           onDoubleTap: onOpen,
           onSecondaryTapDown: (e) => onMenu(e.globalPosition),
-          borderRadius: BorderRadius.circular(10),
-          hoverColor: selected ? _C.raised : _C.hover,
+          borderRadius: BorderRadius.circular(12),
+          hoverColor: selected ? const Color(0xFF2A2427) : _C.hover,
           child: SizedBox(
-            height: 46,
+            height: 48,
             child: Row(children: [
               const SizedBox(width: 10),
               Container(
-                width: 28,
-                height: 28,
+                width: 30,
+                height: 30,
                 decoration: BoxDecoration(
-                  color: d.online
-                      ? _C.accent.withOpacity(0.12)
-                      : Colors.white.withOpacity(0.04),
-                  borderRadius: BorderRadius.circular(8),
+                  gradient: selected && d.online ? _C.grad : null,
+                  color: selected && d.online
+                      ? null
+                      : (d.online
+                          ? const Color(0xFF262124)
+                          : const Color(0xFF1D1A1C)),
+                  borderRadius: BorderRadius.circular(9),
                 ),
                 child: Icon(_osIcon(d.os),
-                    size: 15, color: d.online ? _C.accent : _C.dim),
+                    size: 15,
+                    color: selected && d.online
+                        ? _C.ink
+                        : (d.online ? _C.text : _C.dim)),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 11),
               Expanded(
                 child: Text(d.name,
                     overflow: TextOverflow.ellipsis,
@@ -879,13 +924,16 @@ class _DeviceRow extends StatelessWidget {
                       style: TextStyle(fontSize: 10.5, color: _C.sub)),
                 ),
               const SizedBox(width: 8),
-              Container(
-                width: 7,
-                height: 7,
-                decoration: BoxDecoration(
-                    color: d.online ? _C.online : const Color(0xFF353944),
-                    shape: BoxShape.circle),
-              ),
+              if (d.online || isMe)
+                Container(
+                  width: 7,
+                  height: 7,
+                  decoration: const BoxDecoration(
+                      color: _C.online, shape: BoxShape.circle),
+                )
+              else if (d.lastSeen > 0)
+                Text(_ago(d.lastSeen),
+                    style: const TextStyle(fontSize: 11, color: _C.dim)),
               const SizedBox(width: 12),
             ]),
           ),
@@ -925,182 +973,332 @@ class _DevicePage extends StatelessWidget {
   Widget build(BuildContext context) {
     final d = device;
     final canOpen = d.online && !isMe;
-    final String hint;
+    final String sub;
     if (isMe) {
-      hint = d.ready ? '这是本机。登录同一账号的其他设备可以直接进入它的桌面。' : '正在把本机接入账号…';
+      sub = d.ready ? '这是本机 · 同一账号的设备可以直接进入' : '正在把本机接入账号…';
     } else if (!d.online) {
-      hint = d.lastSeen > 0
-          ? '上线后即可进入 · 最近在线：${_lastSeen(d.lastSeen)}'
-          : '设备离线，上线后即可进入。';
+      sub = d.lastSeen > 0
+          ? '离线 · 最近在线 ${_lastSeen(d.lastSeen)}'
+          : '离线 · 上线后即可进入';
     } else if (!d.ready) {
-      hint = '该设备尚未完成接入，进入时需要输入它的连接密码。';
+      sub = '尚未完成接入，进入时需要输入连接密码';
     } else {
-      hint = '';
+      sub = '同一账号 · 免密进入';
     }
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(32, 26, 32, 28),
-      child: Align(
-        alignment: Alignment.topLeft,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 780),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(children: [
+    final live = d.online || isMe;
+    return LayoutBuilder(builder: (context, box) {
+      return SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(36, 30, 36, 28),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 640),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                  height: 300,
+                  clipBehavior: Clip.antiAlias,
                   decoration: BoxDecoration(
-                      color: (d.online ? _C.online : _C.dim).withOpacity(0.14),
-                      borderRadius: BorderRadius.circular(20)),
-                  child: Row(mainAxisSize: MainAxisSize.min, children: [
-                    Container(
-                      width: 6,
-                      height: 6,
-                      decoration: BoxDecoration(
-                          color: d.online ? _C.online : _C.dim,
-                          shape: BoxShape.circle),
-                    ),
-                    const SizedBox(width: 6),
-                    Text(d.online ? '在线' : '离线',
-                        style: TextStyle(
-                            fontSize: 11.5,
-                            fontWeight: FontWeight.w600,
-                            color: d.online ? _C.online : _C.sub)),
-                  ]),
-                ),
-                const SizedBox(width: 12),
-                Flexible(
-                  child: Text(d.name,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                          fontSize: 20, fontWeight: FontWeight.w700)),
-                ),
-                const SizedBox(width: 4),
-                _IconBtn(
-                    icon: Icons.edit_outlined, tip: '重命名', onTap: onRename),
-                const Spacer(),
-                _Menu(
-                  icon: Icons.more_horiz_rounded,
-                  items: {
-                    'rename': '重命名',
-                    'copy': '复制设备码',
-                    if (!isMe) 'pin': pinned ? '取消置顶' : '置顶',
-                    if (canOpen) 'restart': '远程重启',
-                    if (!isMe) 'remove': '从账号移除',
-                  },
-                  onSelected: (v) {
-                    if (v == 'rename') onRename();
-                    if (v == 'pin') onPin();
-                    if (v == 'restart') onRestart();
-                    if (v == 'copy') _copy();
-                    if (v == 'remove') onRemove();
-                  },
-                ),
-              ]),
-              const SizedBox(height: 20),
-              Container(
-                clipBehavior: Clip.antiAlias,
-                decoration: BoxDecoration(
-                    color: _C.panel,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: _C.line)),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Container(
-                      height: 230,
-                      decoration: BoxDecoration(
-                        gradient: RadialGradient(
-                          center: const Alignment(0, -1.2),
-                          radius: 1.3,
-                          colors: [
-                            (d.online ? _C.accent : _C.dim).withOpacity(0.10),
-                            _C.panel,
-                          ],
+                    borderRadius: BorderRadius.circular(20),
+                    gradient: live ? _C.wallpaper : _C.wallpaperOff,
+                    boxShadow: const [
+                      BoxShadow(
+                          color: Color(0x73000000),
+                          blurRadius: 50,
+                          offset: Offset(0, 24))
+                    ],
+                  ),
+                  child: Stack(children: [
+                    const Positioned.fill(
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            stops: [0.45, 1],
+                            colors: [Color(0x00121014), Color(0xD1121014)],
+                          ),
                         ),
                       ),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(_osIcon(d.os),
-                              size: 44, color: d.online ? _C.text : _C.dim),
-                          const SizedBox(height: 20),
-                          if (!isMe)
-                            _PrimaryBtn(
-                                label: d.online ? '进入桌面' : '设备离线',
-                                onTap: canOpen ? onOpen : null),
-                          if (hint.isNotEmpty)
-                            Padding(
-                              padding: EdgeInsets.only(
-                                  top: isMe ? 0 : 12, left: 24, right: 24),
-                              child: Text(hint,
-                                  textAlign: TextAlign.center,
-                                  style: const TextStyle(
-                                      fontSize: 12.5, color: _C.sub)),
-                            ),
-                        ],
-                      ),
                     ),
-                    Container(height: 1, color: _C.line),
-                    SizedBox(
-                      height: 54,
-                      child: Row(children: [
-                        _BarAction(
-                            icon: Icons.folder_open_rounded,
-                            label: '文件传输',
-                            onTap: canOpen
-                                ? () =>
-                                    connect(context, d.id, isFileTransfer: true)
-                                : null),
-                        const _BarDivider(),
-                        _BarAction(
-                            icon: Icons.visibility_outlined,
-                            label: '观看模式',
-                            onTap: canOpen ? onView : null),
-                        const _BarDivider(),
-                        _BarAction(
-                            icon: Icons.terminal_rounded,
-                            label: '终端',
-                            onTap: canOpen
-                                ? () => connect(context, d.id, isTerminal: true)
-                                : null),
-                        const _BarDivider(),
-                        _BarAction(
-                            icon: Icons.videocam_outlined,
-                            label: '摄像头',
-                            onTap: canOpen
-                                ? () =>
-                                    connect(context, d.id, isViewCamera: true)
-                                : null),
+                    Positioned(
+                      top: 16,
+                      left: 18,
+                      child: _GlassPill(children: [
+                        Container(
+                          width: 6,
+                          height: 6,
+                          decoration: BoxDecoration(
+                              color: live ? _C.online : _C.dim,
+                              shape: BoxShape.circle),
+                        ),
+                        const SizedBox(width: 6),
+                        Text('${live ? '在线' : '离线'} · ${_osLabel(d.os)}',
+                            style: const TextStyle(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w600,
+                                color: _C.text)),
                       ]),
                     ),
-                  ],
+                    Positioned(
+                      top: 12,
+                      right: 12,
+                      child: Container(
+                        decoration: BoxDecoration(
+                            color: const Color(0x8C121014),
+                            borderRadius: BorderRadius.circular(9)),
+                        child: _Menu(
+                          icon: Icons.more_horiz_rounded,
+                          iconColor: _C.text,
+                          items: {
+                            'rename': '重命名',
+                            'copy': '复制设备码',
+                            if (canOpen) 'camera': '查看摄像头',
+                            if (!isMe) 'pin': pinned ? '取消置顶' : '置顶',
+                            if (!isMe) 'remove': '从账号移除',
+                          },
+                          onSelected: (v) {
+                            if (v == 'rename') onRename();
+                            if (v == 'pin') onPin();
+                            if (v == 'copy') _copy();
+                            if (v == 'remove') onRemove();
+                            if (v == 'camera') {
+                              connect(context, d.id, isViewCamera: true);
+                            }
+                          },
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      left: 22,
+                      right: 22,
+                      bottom: 20,
+                      child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Row(children: [
+                                    Flexible(
+                                      child: Text(d.name,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(
+                                              fontSize: 26,
+                                              fontWeight: FontWeight.w800,
+                                              color: _C.text)),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    _IconBtn(
+                                        icon: Icons.edit_outlined,
+                                        tip: '重命名',
+                                        color: _C.text,
+                                        onTap: onRename),
+                                  ]),
+                                  const SizedBox(height: 4),
+                                  Text(sub,
+                                      style: const TextStyle(
+                                          fontSize: 12.5,
+                                          color: Color(0xFFD9CDC6))),
+                                ],
+                              ),
+                            ),
+                            if (!isMe) ...[
+                              const SizedBox(width: 16),
+                              _EnterBtn(
+                                  label: d.online ? '进入桌面' : '设备离线',
+                                  onTap: canOpen ? onOpen : null),
+                            ],
+                          ]),
+                    ),
+                  ]),
                 ),
-              ),
-              const SizedBox(height: 22),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 18),
-                decoration: BoxDecoration(
-                    color: _C.panel,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: _C.line)),
-                child: Column(children: [
-                  _InfoRow(label: '设备码', value: formatID(d.id), onCopy: _copy),
-                  _InfoRow(label: '系统', value: _osLabel(d.os)),
-                  if (d.owner.isNotEmpty)
-                    _InfoRow(label: '登录账号', value: d.owner),
-                  _InfoRow(
-                      label: '免密进入',
-                      value: d.ready ? '已开启' : '未就绪',
-                      last: true),
+                if (!isMe) ...[
+                  const SizedBox(height: 16),
+                  Row(children: [
+                    _ActionChip(
+                        icon: Icons.folder_open_rounded,
+                        label: '文件传输',
+                        onTap: canOpen
+                            ? () => connect(context, d.id, isFileTransfer: true)
+                            : null),
+                    const SizedBox(width: 10),
+                    _ActionChip(
+                        icon: Icons.visibility_outlined,
+                        label: '观看模式',
+                        onTap: canOpen ? onView : null),
+                    const SizedBox(width: 10),
+                    _ActionChip(
+                        icon: Icons.terminal_rounded,
+                        label: '终端',
+                        onTap: canOpen
+                            ? () => connect(context, d.id, isTerminal: true)
+                            : null),
+                    const SizedBox(width: 10),
+                    _ActionChip(
+                        icon: Icons.restart_alt_rounded,
+                        label: '远程重启',
+                        onTap: canOpen ? onRestart : null),
+                  ]),
+                ],
+                const SizedBox(height: 16),
+                Row(children: [
+                  _StatCard(
+                      label: '设备码',
+                      value: formatID(d.id),
+                      onTap: _copy,
+                      tip: '点击复制'),
+                  const SizedBox(width: 10),
+                  _StatCard(label: '系统', value: _osLabel(d.os)),
+                  const SizedBox(width: 10),
+                  _StatCard(
+                      label: '登录账号', value: d.owner.isNotEmpty ? d.owner : '—'),
                 ]),
-              ),
+              ],
+            ),
+          ),
+        ),
+      );
+    });
+  }
+}
+
+class _GlassPill extends StatelessWidget {
+  final List<Widget> children;
+  const _GlassPill({required this.children});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+          color: const Color(0x8C121014),
+          borderRadius: BorderRadius.circular(20)),
+      child: Row(mainAxisSize: MainAxisSize.min, children: children),
+    );
+  }
+}
+
+class _EnterBtn extends StatelessWidget {
+  final String label;
+  final VoidCallback? onTap;
+  const _EnterBtn({required this.label, this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final on = onTap != null;
+    return Material(
+      color: on ? _C.text : const Color(0x66121014),
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: SizedBox(
+          height: 46,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 22),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              Text(label,
+                  style: TextStyle(
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.w800,
+                      color: on ? _C.ink : _C.sub)),
+              if (on) ...[
+                const SizedBox(width: 8),
+                const Icon(Icons.arrow_forward_rounded,
+                    size: 17, color: _C.ink),
+              ],
+            ]),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ActionChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback? onTap;
+  const _ActionChip({required this.icon, required this.label, this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final on = onTap != null;
+    return Expanded(
+      child: Material(
+        color: _C.panel,
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+            side: const BorderSide(color: _C.line2)),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(14),
+          hoverColor: _C.raised,
+          child: SizedBox(
+            height: 64,
+            child:
+                Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+              Icon(icon, size: 20, color: on ? _C.accent : _C.dim),
+              const SizedBox(height: 7),
+              Text(label,
+                  style:
+                      TextStyle(fontSize: 12.5, color: on ? _C.text : _C.dim)),
+            ]),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _StatCard extends StatelessWidget {
+  final String label;
+  final String value;
+  final VoidCallback? onTap;
+  final String? tip;
+  const _StatCard(
+      {required this.label, required this.value, this.onTap, this.tip});
+
+  @override
+  Widget build(BuildContext context) {
+    final card = Material(
+      color: _C.panel,
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+          side: const BorderSide(color: _C.line2)),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        hoverColor: _C.raised,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label,
+                  style: const TextStyle(fontSize: 11.5, color: _C.dim)),
+              const SizedBox(height: 6),
+              Text(value,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: _C.text)),
             ],
           ),
         ),
       ),
     );
+    return Expanded(
+        child: tip == null
+            ? card
+            : Tooltip(
+                message: tip!,
+                waitDuration: const Duration(milliseconds: 500),
+                child: card));
   }
 }
 
@@ -1143,14 +1341,16 @@ class _PrimaryBtn extends StatelessWidget {
   final String label;
   final VoidCallback? onTap;
   final double width;
-  const _PrimaryBtn({required this.label, this.onTap, this.width = 168});
+  final double height;
+  const _PrimaryBtn(
+      {required this.label, this.onTap, this.width = 168, this.height = 44});
 
   @override
   Widget build(BuildContext context) {
     final on = onTap != null;
     return Container(
       width: width,
-      height: 44,
+      height: height,
       decoration: BoxDecoration(
           gradient: on ? _C.grad : null,
           color: on ? null : _C.raised,
@@ -1172,70 +1372,6 @@ class _PrimaryBtn extends StatelessWidget {
       ),
     );
   }
-}
-
-class _BarDivider extends StatelessWidget {
-  const _BarDivider();
-  @override
-  Widget build(BuildContext context) =>
-      Container(width: 1, height: 18, color: _C.line);
-}
-
-class _BarAction extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback? onTap;
-  const _BarAction({required this.icon, required this.label, this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final c = onTap != null ? _C.text : _C.dim;
-    return Expanded(
-      child: InkWell(
-        onTap: onTap,
-        hoverColor: _C.raised,
-        child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-          Icon(icon, size: 18, color: onTap != null ? _C.accent : _C.dim),
-          const SizedBox(width: 8),
-          Text(label, style: TextStyle(fontSize: 13.5, color: c)),
-        ]),
-      ),
-    );
-  }
-}
-
-class _InfoRow extends StatelessWidget {
-  final String label;
-  final String value;
-  final VoidCallback? onCopy;
-  final bool last;
-  const _InfoRow(
-      {required this.label,
-      required this.value,
-      this.onCopy,
-      this.last = false});
-
-  @override
-  Widget build(BuildContext context) => Container(
-        height: 46,
-        decoration: BoxDecoration(
-            border:
-                last ? null : const Border(bottom: BorderSide(color: _C.line))),
-        child: Row(children: [
-          SizedBox(
-            width: 96,
-            child: Text(label,
-                style: const TextStyle(fontSize: 13, color: _C.dim)),
-          ),
-          Expanded(
-            child: Text(value,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 13, color: _C.text)),
-          ),
-          if (onCopy != null)
-            _IconBtn(icon: Icons.copy_rounded, tip: '复制', onTap: onCopy!),
-        ]),
-      );
 }
 
 class _NoticeStrip extends StatelessWidget {
@@ -1330,12 +1466,12 @@ class _SignInState extends State<_SignIn> {
         hintText: hint,
         hintStyle: const TextStyle(color: _C.dim, fontSize: 14),
         filled: true,
-        fillColor: _C.raised,
+        fillColor: const Color(0x0FFFFFFF),
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        border: _border(Colors.transparent),
-        enabledBorder: _border(Colors.transparent),
-        disabledBorder: _border(Colors.transparent),
+        border: _border(const Color(0x14FFFFFF)),
+        enabledBorder: _border(const Color(0x14FFFFFF)),
+        disabledBorder: _border(const Color(0x14FFFFFF)),
         focusedBorder: _border(_C.accent),
       );
 
@@ -1346,41 +1482,106 @@ class _SignInState extends State<_SignIn> {
       children: [
         if (widget.notice != null) _NoticeStrip(widget.notice!),
         Expanded(child: LayoutBuilder(builder: (context, box) {
-          final split = box.maxWidth >= 780;
-          return Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            if (split) const SizedBox(width: 440, child: _Poster()),
-            Expanded(child: _form(split)),
+          final wide = box.maxWidth >= 760;
+          return Stack(fit: StackFit.expand, children: [
+            const ColoredBox(color: Color(0xFFF3A48C)),
+            Image.asset('assets/login_poster.jpg',
+                fit: BoxFit.cover, alignment: const Alignment(-0.4, -0.1)),
+            const DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                  stops: [0.3, 0.62, 1],
+                  colors: [
+                    Color(0x00121014),
+                    Color(0x59121014),
+                    Color(0x99121014)
+                  ],
+                ),
+              ),
+            ),
+            Positioned(
+              left: 36,
+              top: 40,
+              child: Row(children: [
+                Image.asset('assets/mark_white.png',
+                    width: 28, height: 28, color: _posterInk),
+                const SizedBox(width: 10),
+                const Text('OpenDesk',
+                    style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: _posterInk)),
+              ]),
+            ),
+            if (wide)
+              const Positioned(
+                left: 36,
+                bottom: 40,
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text('每一台电脑，\n都在你手边。',
+                          style: TextStyle(
+                              fontSize: 30,
+                              height: 1.3,
+                              fontWeight: FontWeight.w800,
+                              color: _posterInk)),
+                      SizedBox(height: 10),
+                      Text('登录即互联 · 免密进入 · 自己的服务器',
+                          style: TextStyle(
+                              fontSize: 13, color: Color(0xFF6B3A2C))),
+                    ]),
+              ),
+            Align(
+              alignment: wide ? const Alignment(0.86, 0) : Alignment.center,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: _card(),
+              ),
+            ),
           ]);
         })),
       ],
     );
   }
 
-  Widget _form(bool split) {
-    return Center(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 330),
+  static const _posterInk = Color(0xFF3A2018);
+
+  Widget _label(String t) => Padding(
+        padding: const EdgeInsets.only(bottom: 6),
+        child: Text(t, style: const TextStyle(fontSize: 12, color: _C.sub)),
+      );
+
+  Widget _card() {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(22),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
+        child: Container(
+          width: 340,
+          padding: const EdgeInsets.fromLTRB(30, 34, 30, 26),
+          decoration: BoxDecoration(
+            color: const Color(0xCC161316),
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: const Color(0x14FFFFFF)),
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (!split) ...[
-                Center(
-                    child: Image.asset('assets/mark_white.png',
-                        width: 64, height: 64)),
-                const SizedBox(height: 20),
-              ],
-              Text(split ? '登录' : '登录 OpenDesk',
-                  textAlign: split ? TextAlign.left : TextAlign.center,
-                  style: const TextStyle(
-                      fontSize: 24, fontWeight: FontWeight.w700)),
+              const Text('欢迎回来',
+                  style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w800,
+                      color: _C.text)),
               const SizedBox(height: 8),
-              Text('登录同一账号的设备可以互相远程控制',
-                  textAlign: split ? TextAlign.left : TextAlign.center,
-                  style: const TextStyle(fontSize: 13, color: _C.sub)),
-              const SizedBox(height: 28),
+              const Text('登录同一账号的设备可以互相远程控制',
+                  style: TextStyle(fontSize: 13, color: _C.sub)),
+              const SizedBox(height: 26),
+              _label('账号'),
               TextField(
                 controller: _user,
                 autofocus: true,
@@ -1389,9 +1590,10 @@ class _SignInState extends State<_SignIn> {
                 style: const TextStyle(fontSize: 14, color: _C.text),
                 textInputAction: TextInputAction.next,
                 onSubmitted: (_) => _passFocus.requestFocus(),
-                decoration: _field('账号'),
+                decoration: _field('请输入账号'),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 14),
+              _label('密码'),
               TextField(
                 controller: _pass,
                 focusNode: _passFocus,
@@ -1400,10 +1602,10 @@ class _SignInState extends State<_SignIn> {
                 cursorColor: _C.accent,
                 style: const TextStyle(fontSize: 14, color: _C.text),
                 onSubmitted: (_) => _submit(),
-                decoration: _field('密码'),
+                decoration: _field('请输入密码'),
               ),
               SizedBox(
-                height: 32,
+                height: 30,
                 child: Align(
                   alignment: Alignment.centerLeft,
                   child: Text(_error ?? '',
@@ -1413,89 +1615,22 @@ class _SignInState extends State<_SignIn> {
               _PrimaryBtn(
                   label: _busy ? '正在登录…' : '登录',
                   width: double.infinity,
+                  height: 48,
                   onTap: _busy ? null : _submit),
-              const SizedBox(height: 16),
-              Row(
-                  mainAxisAlignment: split
-                      ? MainAxisAlignment.start
-                      : MainAxisAlignment.center,
-                  children: [
-                    const Text('没有账号？请联系管理员开通',
-                        style: TextStyle(fontSize: 12, color: _C.dim)),
-                    const SizedBox(width: 6),
-                    _IconBtn(
-                        icon: Icons.settings_outlined,
-                        tip: '设置',
-                        onTap: () => DesktopTabPage.onAddSetting()),
-                  ]),
+              const SizedBox(height: 14),
+              Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                const Text('没有账号？请联系管理员开通',
+                    style: TextStyle(fontSize: 12, color: _C.dim)),
+                const SizedBox(width: 4),
+                _IconBtn(
+                    icon: Icons.settings_outlined,
+                    tip: '设置',
+                    onTap: () => DesktopTabPage.onAddSetting()),
+              ]),
             ],
           ),
         ),
       ),
     );
-  }
-}
-
-class _Poster extends StatelessWidget {
-  const _Poster();
-
-  static const _ink = Color(0xFF3A2018);
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(fit: StackFit.expand, children: [
-      const ColoredBox(color: Color(0xFFF3A48C)),
-      Image.asset('assets/login_poster.jpg',
-          fit: BoxFit.cover, alignment: const Alignment(0, -0.1)),
-      const Positioned(
-        left: 0,
-        right: 0,
-        bottom: 0,
-        height: 230,
-        child: DecoratedBox(
-            decoration: BoxDecoration(
-                gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    stops: [
-              0,
-              0.55,
-              1
-            ],
-                    colors: [
-              Color(0x00FFF4E8),
-              Color(0xDBFFF4E8),
-              Color(0xF5FFF4E8)
-            ]))),
-      ),
-      const Positioned(
-          left: 36,
-          top: 34,
-          child: Text('OpenDesk',
-              style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.3,
-                  color: _ink))),
-      const Positioned(
-        left: 36,
-        right: 36,
-        bottom: 36,
-        child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('每一台电脑，\n都在你手边。',
-                  style: TextStyle(
-                      fontSize: 26,
-                      height: 1.3,
-                      fontWeight: FontWeight.w700,
-                      color: _ink)),
-              SizedBox(height: 10),
-              Text('登录即互联 · 免密进入 · 自己的服务器',
-                  style: TextStyle(fontSize: 13, color: Color(0xFF6B3A2C))),
-            ]),
-      ),
-    ]);
   }
 }

@@ -7,12 +7,12 @@ import 'package:flutter_hbb/models/server_model.dart';
 import 'package:flutter_hbb/models/yc_team.dart';
 import 'package:window_manager/window_manager.dart';
 
-const _panel = Color(0xFF14161C);
-const _raised = Color(0xFF1B1E26);
-const _line = Color(0xFF22252E);
-const _text = Color(0xFFECEEF3);
-const _sub = Color(0xFFA4A9B6);
-const _online = Color(0xFF3DDC84);
+const _panel = Color(0xFF1A1719);
+const _raised = Color(0xFF262124);
+const _line = Color(0xFF2E2A2D);
+const _text = Color(0xFFF5EFEA);
+const _sub = Color(0xFFB3A9A3);
+const _online = Color(0xFF5FD38D);
 const _danger = Color(0xFFFF8A8A);
 
 const double _cardHeight = 76;
@@ -97,7 +97,7 @@ class _YcCmCardsState extends State<YcCmCards> {
         behavior: HitTestBehavior.translucent,
         onPanStart: (_) => windowManager.startDragging(),
         child: Container(
-          color: const Color(0xFF0B0C10),
+          color: const Color(0xFF121014),
           padding: const EdgeInsets.all(_pad),
           child: Column(children: [
             for (var i = 0; i < clients.length; i++) ...[

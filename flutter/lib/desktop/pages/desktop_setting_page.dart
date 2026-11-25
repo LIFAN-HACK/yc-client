@@ -279,7 +279,7 @@ class _DesktopSettingPageState extends State<DesktopSettingPage>
     super.build(context);
     return Scaffold(
       backgroundColor: isDesktop && Get.isDarkMode
-          ? const Color(0xFF0F1116)
+          ? const Color(0xFF121014)
           : Theme.of(context).colorScheme.background,
       body: _buildBlock(
         children: <Widget>[
@@ -382,7 +382,7 @@ class _DesktopSettingPageState extends State<DesktopSettingPage>
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 1),
           child: Material(
-            color: selected ? const Color(0xFF1B1E26) : Colors.transparent,
+            color: selected ? const Color(0xFF231F22) : Colors.transparent,
             borderRadius: BorderRadius.circular(9),
             child: InkWell(
               borderRadius: BorderRadius.circular(9),
@@ -399,8 +399,8 @@ class _DesktopSettingPageState extends State<DesktopSettingPage>
                   Icon(selected ? tab.selected : tab.unselected,
                       size: 17,
                       color: selected
-                          ? const Color(0xFFECEEF3)
-                          : const Color(0xFFA4A9B6)),
+                          ? const Color(0xFFF5EFEA)
+                          : const Color(0xFFB3A9A3)),
                   const SizedBox(width: 10),
                   Text(tab.label,
                       style: TextStyle(
@@ -408,8 +408,8 @@ class _DesktopSettingPageState extends State<DesktopSettingPage>
                           fontWeight:
                               selected ? FontWeight.w600 : FontWeight.w400,
                           color: selected
-                              ? const Color(0xFFECEEF3)
-                              : const Color(0xFFA4A9B6))),
+                              ? const Color(0xFFF5EFEA)
+                              : const Color(0xFFB3A9A3))),
                 ]),
               ),
             ),
@@ -2717,13 +2717,13 @@ Widget _Card(
           width: _kCardFixedWidth,
           child: Card(
             elevation: isDesktop ? 0 : null,
-            color: isDesktop && Get.isDarkMode ? const Color(0xFF14161C) : null,
+            color: isDesktop && Get.isDarkMode ? const Color(0xFF1A1719) : null,
             shape: isDesktop
                 ? RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14),
                     side: BorderSide(
                         color: Get.isDarkMode
-                            ? const Color(0xFF22252E)
+                            ? const Color(0xFF2E2A2D)
                             : const Color(0x1F000000)))
                 : null,
             child: Column(

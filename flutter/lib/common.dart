@@ -473,8 +473,8 @@ class MyTheme {
     useMaterial3: false,
     brightness: Brightness.dark,
     hoverColor: Color(0xFF232630),
-    scaffoldBackgroundColor: Color(0xFF0F1116),
-    dialogBackgroundColor: Color(0xFF14161C),
+    scaffoldBackgroundColor: Color(0xFF121014),
+    dialogBackgroundColor: Color(0xFF1A1719),
     appBarTheme: AppBarTheme(
       shadowColor: Colors.transparent,
     ),
@@ -484,14 +484,14 @@ class MyTheme {
         borderRadius: BorderRadius.circular(18.0),
         side: BorderSide(
           width: 1,
-          color: Color(0xFF1B1E26),
+          color: Color(0xFF231F22),
         ),
       ),
     ),
     scrollbarTheme: scrollbarThemeDark,
     inputDecorationTheme: (isDesktop || isWebDesktop)
         ? InputDecorationTheme(
-            fillColor: Color(0xFF1B1E26),
+            fillColor: Color(0xFF231F22),
             filled: true,
             isDense: true,
             border: OutlineInputBorder(
@@ -510,7 +510,7 @@ class MyTheme {
         color: accent80,
       ),
     ),
-    cardColor: Color(0xFF1B1E26),
+    cardColor: Color(0xFF231F22),
     visualDensity: VisualDensity.adaptivePlatformDensity,
     tabBarTheme: const TabBarTheme(
       labelColor: Colors.white70,
@@ -544,7 +544,7 @@ class MyTheme {
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
-        backgroundColor: Color(0xFF1B1E26),
+        backgroundColor: Color(0xFF231F22),
         side: BorderSide(color: Colors.white12, width: 0.5),
         disabledForegroundColor: Colors.white70,
         foregroundColor: Colors.white70,
@@ -563,7 +563,7 @@ class MyTheme {
     colorScheme: ColorScheme.dark(
       primary: accent,
       secondary: accent,
-      background: Color(0xFF1B1E26),
+      background: Color(0xFF231F22),
     ),
     popupMenuTheme: PopupMenuThemeData(
         shape: RoundedRectangleBorder(
