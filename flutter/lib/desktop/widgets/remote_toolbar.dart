@@ -3536,8 +3536,26 @@ class _SessionTitleBarState extends State<SessionTitleBar> {
     _tick = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
       setState(() => _ffi ??= _resolve());
+      _watchDelay();
     });
     _loadName();
+  }
+
+  int _slowSeconds = 0;
+  bool _slowTipShown = false;
+
+  /// Like UU: after ten seconds of high latency, suggest the two things that help, once.
+  void _watchDelay() {
+    final ffi = _ffi;
+    if (ffi == null || _slowTipShown) return;
+    final delay = int.tryParse((ffi.qualityMonitorModel.data.delay ?? '')
+        .replaceAll(RegExp(r'[^0-9]'), ''));
+    _slowSeconds = delay != null && delay >= 200 ? _slowSeconds + 1 : 0;
+    if (_slowSeconds >= 10) {
+      _slowTipShown = true;
+      showToast('网络延迟较高。可在 控制中心 → 画质 选择“流畅”，或改走中转线路重连',
+          timeout: const Duration(seconds: 6));
+    }
   }
 
   FFI? _resolve() {
