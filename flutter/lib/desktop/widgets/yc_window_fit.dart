@@ -22,14 +22,24 @@ class YcWindowFit {
   Timer? _timer;
   Size? _canvas;
   String _done = '';
+  String _display = '';
 
   YcWindowFit(this.ffi) {
-    ffi.ffiModel.addListener(_schedule);
+    ffi.ffiModel.addListener(_onModel);
   }
 
   void dispose() {
     _timer?.cancel();
-    ffi.ffiModel.removeListener(_schedule);
+    ffi.ffiModel.removeListener(_onModel);
+  }
+
+  // The session model changes often; only a new remote screen size matters here.
+  void _onModel() {
+    final d =
+        '${ffi.canvasModel.getDisplayWidth()}x${ffi.canvasModel.getDisplayHeight()}';
+    if (d == _display) return;
+    _display = d;
+    _schedule();
   }
 
   void onCanvasSize(Size size) {
