@@ -124,6 +124,25 @@ def bare(size, color, pad=3.0):
     return down(glyph(size, (lo, cy - span / 2, hi, cy + span / 2), color), size)
 
 
+def bare_two_tone(size, color, dot_color, pad=1.0):
+    """Mark alone with the dot in its own colour, for the warm in-app logo."""
+    lo, hi = 10.9 - pad, 89.1 + pad
+    span = hi - lo
+    cy = (14.5 + 89.5) / 2
+    box = (lo, cy - span / 2, hi, cy + span / 2)
+    n = size * SS
+    k = n / (box[2] - box[0])
+    dot = Image.new("L", (n, n), 0)
+    dx, dy, dr = DOT
+    ImageDraw.Draw(dot).ellipse([(dx - dr - box[0]) * k, (dy - dr - box[1]) * k,
+                                 (dx + dr - box[0]) * k, (dy + dr - box[1]) * k], fill=255)
+    img = glyph(size, box, color)
+    tint = Image.new("RGBA", (n, n), dot_color)
+    tint.putalpha(dot)
+    img.alpha_composite(tint)
+    return down(img, size)
+
+
 def save(img, rel, **kw):
     path = ROOT / rel
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -157,6 +176,7 @@ def main():
 
     (ROOT / "flutter/assets/icon.svg").write_text(svg(20))
     save(bare(256, (255, 255, 255, 255), pad=1.0), "flutter/assets/mark_white.png")
+    save(bare_two_tone(256, (245, 239, 234, 255), (242, 140, 107, 255)), "flutter/assets/mark_warm.png")
     print("wrote flutter/assets/icon.svg")
 
     if len(sys.argv) > 1:

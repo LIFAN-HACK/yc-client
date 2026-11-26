@@ -496,7 +496,7 @@ class _YcHomeState extends State<YcHome> {
           Padding(
             padding: const EdgeInsets.fromLTRB(18, 18, 10, 14),
             child: Row(children: [
-              Image.asset('assets/mark_white.png', width: 26, height: 26),
+              Image.asset('assets/mark_warm.png', width: 26, height: 26),
               const SizedBox(width: 10),
               const Expanded(
                 child: Text('OpenDesk',
