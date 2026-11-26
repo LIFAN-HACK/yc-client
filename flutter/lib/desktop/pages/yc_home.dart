@@ -745,6 +745,9 @@ class _YcHomeState extends State<YcHome> {
     if (!_loaded) {
       title = '正在读取设备…';
       body = '';
+    } else if (_failed) {
+      title = '连不上 OpenDesk 服务器';
+      body = '正在自动重试。请检查本机网络；网络正常的话，请联系管理员检查服务器。';
     } else {
       title = '还没有设备';
       body = '在另一台电脑上安装 OpenDesk 并登录这个账号，它就会出现在左边。';
@@ -753,7 +756,7 @@ class _YcHomeState extends State<YcHome> {
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 320),
         child: Column(mainAxisSize: MainAxisSize.min, children: [
-          const Icon(Icons.devices_rounded, size: 48, color: _C.dim),
+          Icon(_failed ? Icons.cloud_off_rounded : Icons.devices_rounded, size: 48, color: _C.dim),
           const SizedBox(height: 16),
           Text(title,
               style:
