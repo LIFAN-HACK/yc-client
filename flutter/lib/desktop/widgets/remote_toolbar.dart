@@ -3683,7 +3683,27 @@ class _SessionTitleBarState extends State<SessionTitleBar> {
                   onTap: () => openMonitorInTheSameTab(i, ffi, pi),
                 ),
               ),
-          if (displays > 1) const SizedBox(width: 6),
+          if (displays > 1) const SizedBox(width: 2),
+          // UU's "+": add a virtual screen, where the remote computer supports one.
+          if (showVirtualDisplayMenu(ffi))
+            Theme(
+              data: _menuTheme(context),
+              child: MenuBar(children: [
+                SizedBox(
+                  height: 26,
+                  child: SubmenuButton(
+                    menuStyle: _ToolbarTheme.defaultMenuStyle(context),
+                    style: _ToolbarTheme.defaultMenuButtonStyle,
+                    menuChildren:
+                        getVirtualDisplayMenuChildren(ffi, widget.id, null),
+                    child: const Tooltip(
+                        message: '虚拟显示屏',
+                        child: Icon(Icons.add_rounded, size: 17)),
+                  ),
+                ),
+              ]),
+            ),
+          const SizedBox(width: 6),
           Tooltip(
             message: tip.isEmpty ? '正在测量' : tip,
             child: Row(mainAxisSize: MainAxisSize.min, children: [
