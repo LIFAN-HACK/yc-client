@@ -1099,10 +1099,22 @@ class _SafetyState extends State<_Safety> with AutomaticKeepAliveClientMixin {
               block: locked,
               child: Column(children: [
                 permissions(context),
-                password(context),
-                _Card(title: '2FA', children: [tfa()]),
-                if (!isChangeIdDisabled())
-                  _Card(title: 'ID', children: [changeId()]),
+                // YC: on an account the connection password, 2FA and ID are what
+                // password-free entry relies on; changing them here would break it.
+                if (gFFI.userModel.isLogin)
+                  _Card(title: '账号管理', children: [
+                    Text(
+                      '这台电脑由 OpenDesk 账号管理：同一账号的设备可以免密进入。'
+                      '连接密码、双重验证和设备码由 OpenDesk 自动维护，所以这里不再提供修改。',
+                      style: TextStyle(fontSize: 13, height: 1.6),
+                    ).marginOnly(left: _kContentHMargin, bottom: 6),
+                  ])
+                else ...[
+                  password(context),
+                  _Card(title: '2FA', children: [tfa()]),
+                  if (!isChangeIdDisabled())
+                    _Card(title: 'ID', children: [changeId()]),
+                ],
                 more(context),
               ]),
             ),
