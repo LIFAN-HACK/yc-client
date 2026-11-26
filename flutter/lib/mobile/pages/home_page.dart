@@ -71,38 +71,42 @@ class HomePageState extends State<HomePage> {
           }
           return false;
         },
-        child: Scaffold(
-          // backgroundColor: MyTheme.grayBg,
-          appBar: AppBar(
-            centerTitle: true,
-            title: appTitle(),
-            actions: _pages.elementAt(_selectedIndex).appBarActions,
-          ),
-          bottomNavigationBar: BottomNavigationBar(
-            key: navigationBarKey,
-            items: _pages
-                .map((page) =>
-                    BottomNavigationBarItem(icon: page.icon, label: page.title))
-                .toList(),
-            currentIndex: _selectedIndex,
-            type: BottomNavigationBarType.fixed,
-            selectedItemColor: MyTheme.accent, //
-            unselectedItemColor: MyTheme.darkGray,
-            onTap: (index) => setState(() {
-              // close chat overlay when go chat page
-              if (_selectedIndex != index) {
-                _selectedIndex = index;
-                if (isChatPageCurrentTab) {
-                  gFFI.chatModel.hideChatIconOverlay();
-                  gFFI.chatModel.hideChatWindowOverlay();
-                  gFFI.chatModel.mobileClearClientUnread(
-                      gFFI.chatModel.currentKey.connId);
-                }
-              }
-            }),
-          ),
-          body: _pages.elementAt(_selectedIndex),
-        ));
+        child: Obx(() => Scaffold(
+              // backgroundColor: MyTheme.grayBg,
+              // YC: the device list signs in full screen, poster first, with no bar above it.
+              appBar: _selectedIndex == 0 &&
+                      gFFI.userModel.userName.value.isEmpty
+                  ? null
+                  : AppBar(
+                      centerTitle: true,
+                      title: appTitle(),
+                      actions: _pages.elementAt(_selectedIndex).appBarActions,
+                    ),
+              bottomNavigationBar: BottomNavigationBar(
+                key: navigationBarKey,
+                items: _pages
+                    .map((page) => BottomNavigationBarItem(
+                        icon: page.icon, label: page.title))
+                    .toList(),
+                currentIndex: _selectedIndex,
+                type: BottomNavigationBarType.fixed,
+                selectedItemColor: const Color(0xFFF28C6B),
+                unselectedItemColor: MyTheme.darkGray,
+                onTap: (index) => setState(() {
+                  // close chat overlay when go chat page
+                  if (_selectedIndex != index) {
+                    _selectedIndex = index;
+                    if (isChatPageCurrentTab) {
+                      gFFI.chatModel.hideChatIconOverlay();
+                      gFFI.chatModel.hideChatWindowOverlay();
+                      gFFI.chatModel.mobileClearClientUnread(
+                          gFFI.chatModel.currentKey.connId);
+                    }
+                  }
+                }),
+              ),
+              body: _pages.elementAt(_selectedIndex),
+            )));
   }
 
   Widget appTitle() {
@@ -248,12 +252,12 @@ class WebHomePage extends StatelessWidget {
       }
     }
     if (id != null) {
-      connect(context, id, 
-        isFileTransfer: isFileTransfer, 
-        isViewCamera: isViewCamera, 
-        isTerminal: isTerminal,
-        loginMethod: loginMethod,
-        password: password);
+      connect(context, id,
+          isFileTransfer: isFileTransfer,
+          isViewCamera: isViewCamera,
+          isTerminal: isTerminal,
+          loginMethod: loginMethod,
+          password: password);
     }
   }
 }

@@ -8,16 +8,21 @@ import 'package:flutter_hbb/models/platform_model.dart';
 import 'package:flutter_hbb/models/yc_team.dart';
 import 'package:get/get.dart';
 
-const _bg = Color(0xFF0B0C10);
-const _panel = Color(0xFF14161C);
-const _raised = Color(0xFF1B1E26);
-const _line = Color(0xFF22252E);
-const _text = Color(0xFFECEEF3);
-const _sub = Color(0xFFA4A9B6);
-const _dim = Color(0xFF6D7382);
-const _ink = Color(0xFF0B0D10);
-const _online = Color(0xFF3DDC84);
-const _danger = Color(0xFFFF6B6B);
+const _bg = Color(0xFF121014);
+const _panel = Color(0xFF1A1719);
+const _raised = Color(0xFF231F22);
+const _line = Color(0xFF2E2A2D);
+const _text = Color(0xFFF5EFEA);
+const _sub = Color(0xFFB3A9A3);
+const _dim = Color(0xFF8C827C);
+const _ink = Color(0xFF1A1214);
+const _online = Color(0xFF5FD38D);
+const _danger = Color(0xFFFF8A8A);
+const _accent = Color(0xFFF28C6B);
+const _grad = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xFFF7A27F), Color(0xFFEE7A5A)]);
 
 /// The phone's first tab: sign in once, then the account's devices, one tap to enter.
 class YcMobileHome extends StatefulWidget implements PageShape {
@@ -225,76 +230,127 @@ class _YcMobileHomeState extends State<YcMobileHome> {
         border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
             borderSide: BorderSide.none),
+        enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: _line)),
+        focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: _accent)),
       );
 
   Widget _signInForm() {
-    return Center(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(28),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Center(
-                child: Image.asset('assets/mark_white.png',
-                    width: 60, height: 60)),
-            const SizedBox(height: 20),
-            const Text('登录 OpenDesk',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                    fontSize: 22, fontWeight: FontWeight.w700, color: _text)),
-            const SizedBox(height: 8),
-            const Text('登录同一账号的设备可以互相远程控制',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 13, color: _sub)),
-            const SizedBox(height: 28),
-            TextField(
-              controller: _user,
-              enabled: !_busy,
-              style: const TextStyle(fontSize: 14, color: _text),
-              textInputAction: TextInputAction.next,
-              decoration: _field('账号'),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _pass,
-              enabled: !_busy,
-              obscureText: true,
-              style: const TextStyle(fontSize: 14, color: _text),
-              onSubmitted: (_) => _signIn(),
-              decoration: _field('密码'),
-            ),
-            SizedBox(
-              height: 32,
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Text(_error ?? '',
-                    style: const TextStyle(fontSize: 12.5, color: _danger)),
+    return LayoutBuilder(builder: (context, box) {
+      final posterH = (box.maxHeight * 0.42).clamp(200.0, 360.0);
+      return SingleChildScrollView(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minHeight: box.maxHeight),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SizedBox(
+                height: posterH,
+                child: Stack(fit: StackFit.expand, children: [
+                  const ColoredBox(color: Color(0xFFF3A48C)),
+                  Image.asset('assets/login_poster.jpg',
+                      fit: BoxFit.cover, alignment: const Alignment(0, -0.2)),
+                  const DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        stops: [0.55, 1],
+                        colors: [Color(0x00121014), _bg],
+                      ),
+                    ),
+                  ),
+                  const Positioned(
+                    left: 24,
+                    bottom: 18,
+                    child: Text('每一台电脑，\n都在你手边。',
+                        style: TextStyle(
+                            fontSize: 24,
+                            height: 1.3,
+                            fontWeight: FontWeight.w800,
+                            color: _text)),
+                  ),
+                ]),
               ),
-            ),
-            SizedBox(
-              height: 48,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: _ink,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12))),
-                onPressed: _busy ? null : _signIn,
-                child: Text(_busy ? '正在登录…' : '登录',
-                    style: const TextStyle(
-                        fontSize: 15, fontWeight: FontWeight.w700)),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 10, 24, 28),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const Text('欢迎回来',
+                        style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800,
+                            color: _text)),
+                    const SizedBox(height: 6),
+                    const Text('登录同一账号的设备可以互相远程控制',
+                        style: TextStyle(fontSize: 13, color: _sub)),
+                    const SizedBox(height: 22),
+                    TextField(
+                      controller: _user,
+                      enabled: !_busy,
+                      cursorColor: _accent,
+                      style: const TextStyle(fontSize: 14, color: _text),
+                      textInputAction: TextInputAction.next,
+                      decoration: _field('账号'),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _pass,
+                      enabled: !_busy,
+                      obscureText: true,
+                      cursorColor: _accent,
+                      style: const TextStyle(fontSize: 14, color: _text),
+                      onSubmitted: (_) => _signIn(),
+                      decoration: _field('密码'),
+                    ),
+                    SizedBox(
+                      height: 30,
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(_error ?? '',
+                            style: const TextStyle(
+                                fontSize: 12.5, color: _danger)),
+                      ),
+                    ),
+                    DecoratedBox(
+                      decoration: BoxDecoration(
+                          gradient: _busy ? null : _grad,
+                          color: _busy ? _raised : null,
+                          borderRadius: BorderRadius.circular(13)),
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(13),
+                          onTap: _busy ? null : _signIn,
+                          child: SizedBox(
+                            height: 50,
+                            child: Center(
+                              child: Text(_busy ? '正在登录…' : '登录',
+                                  style: TextStyle(
+                                      fontSize: 15.5,
+                                      fontWeight: FontWeight.w800,
+                                      color: _busy ? _dim : _ink)),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    const Text('没有账号？请联系管理员开通',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 12, color: _dim)),
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(height: 16),
-            const Text('没有账号？请联系管理员开通',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 12, color: _dim)),
-          ],
+            ],
+          ),
         ),
-      ),
-    );
+      );
+    });
   }
 
   Widget _list() {
@@ -361,10 +417,10 @@ class _YcMobileHomeState extends State<YcMobileHome> {
       child: Material(
         color: _panel,
         shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(16),
             side: const BorderSide(color: _line)),
         child: InkWell(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(16),
           onTap: canOpen ? () => connect(context, d.id) : () => _sheet(d),
           onLongPress: () => _sheet(d),
           child: Padding(
@@ -374,9 +430,14 @@ class _YcMobileHomeState extends State<YcMobileHome> {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(d.online ? 0.10 : 0.04),
-                    borderRadius: BorderRadius.circular(11)),
-                child: Icon(icon, size: 20, color: d.online ? _text : _dim),
+                    gradient: canOpen ? _grad : null,
+                    color: canOpen
+                        ? null
+                        : Colors.white.withOpacity(d.online ? 0.08 : 0.04),
+                    borderRadius: BorderRadius.circular(12)),
+                child: Icon(icon,
+                    size: 20,
+                    color: canOpen ? _ink : (d.online ? _text : _dim)),
               ),
               const SizedBox(width: 12),
               Expanded(
