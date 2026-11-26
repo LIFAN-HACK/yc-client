@@ -22,6 +22,7 @@ import '../../common/shared_state.dart';
 import '../../utils/image.dart';
 import '../widgets/remote_toolbar.dart';
 import '../widgets/yc_window_fit.dart';
+import '../widgets/yc_snapshot.dart';
 import '../widgets/kb_layout_type_chooser.dart';
 import '../widgets/tabbar_widget.dart';
 import 'macos_full_screen_focus_recovery.dart';
@@ -132,6 +133,7 @@ class _RemotePageState extends State<RemotePage>
 
   late FFI _ffi;
   late final YcWindowFit _windowFit;
+  Timer? _snapshots;
   Worker? _waylandKeyboardModeWorker;
   bool _waylandKeyboardModeNormalized = false;
   bool _waylandKeyboardModeNormalizing = false;
@@ -154,6 +156,7 @@ class _RemotePageState extends State<RemotePage>
     super.initState();
     _ffi = FFI(widget.sessionId);
     _windowFit = YcWindowFit(_ffi);
+    _snapshots = YcSnapshot.track(_ffi, widget.id);
     if (isMacOS) {
       // SchedulerBinding.instance.lifecycleState is null in the first connection in a new window.
       _macOSLifecycleState = SchedulerBinding.instance.lifecycleState;
@@ -667,6 +670,7 @@ class _RemotePageState extends State<RemotePage>
       WidgetsBinding.instance.removeObserver(this);
     }
     _windowFit.dispose();
+    _snapshots?.cancel();
     super.dispose();
     debugPrint("REMOTE PAGE dispose session $sessionId ${widget.id}");
 

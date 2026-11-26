@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_hbb/common.dart';
 import 'package:flutter_hbb/common/formatter/id_formatter.dart';
 import 'package:flutter_hbb/desktop/pages/desktop_tab_page.dart';
+import 'package:flutter_hbb/desktop/widgets/yc_snapshot.dart';
 import 'package:flutter_hbb/models/platform_model.dart';
 import 'package:flutter_hbb/models/state_model.dart';
 import 'package:flutter_hbb/models/yc_team.dart';
@@ -1012,6 +1013,28 @@ class _DevicePage extends StatelessWidget {
                     ],
                   ),
                   child: Stack(children: [
+                    // The device's screen as it looked last time, when there is one.
+                    Positioned.fill(
+                      child: FutureBuilder<Uint8List?>(
+                        future: YcSnapshot.load(d.id),
+                        builder: (context, snap) {
+                          final bytes = snap.data;
+                          if (bytes == null) return const SizedBox();
+                          final img = Image.memory(bytes,
+                              fit: BoxFit.cover, gaplessPlayback: true);
+                          return live
+                              ? img
+                              : ColorFiltered(
+                                  colorFilter: const ColorFilter.matrix([
+                                    0.3, 0.5, 0.1, 0, 0, //
+                                    0.3, 0.5, 0.1, 0, 0, //
+                                    0.3, 0.5, 0.1, 0, 0, //
+                                    0, 0, 0, 0.7, 0,
+                                  ]),
+                                  child: img);
+                        },
+                      ),
+                    ),
                     const Positioned.fill(
                       child: DecoratedBox(
                         decoration: BoxDecoration(
