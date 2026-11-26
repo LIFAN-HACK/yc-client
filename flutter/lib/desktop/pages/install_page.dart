@@ -9,7 +9,6 @@ import 'package:flutter_hbb/models/platform_model.dart';
 import 'package:flutter_hbb/models/state_model.dart';
 import 'package:get/get.dart';
 import 'package:path/path.dart';
-import 'package:url_launcher/url_launcher_string.dart';
 import 'package:window_manager/window_manager.dart';
 
 class InstallPage extends StatefulWidget {
@@ -156,15 +155,24 @@ class _InstallPageBodyState extends State<_InstallPageBody>
   @override
   Widget build(BuildContext context) {
     final double em = 13;
-    final isDarkTheme = MyTheme.currentThemeMode() == ThemeMode.dark;
     return Scaffold(
-        backgroundColor: null,
+        backgroundColor: const Color(0xFF121014),
         body: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(translate('Installation'),
-                  style: Theme.of(context).textTheme.headlineMedium),
+              Row(children: [
+                Image.asset('assets/mark_warm.png', width: 34, height: 34),
+                const SizedBox(width: 12),
+                const Text('安装 OpenDesk',
+                    style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFFF5EFEA))),
+              ]),
+              const SizedBox(height: 8),
+              const Text('装好后用账号登录，同一账号的电脑就可以互相远程控制，不用再输密码。',
+                  style: TextStyle(fontSize: 13, color: Color(0xFFB3A9A3))),
               Table(
                 columnWidths: const {
                   0: IntrinsicColumnWidth(),
@@ -213,42 +221,28 @@ class _InstallPageBodyState extends State<_InstallPageBody>
                   .marginOnly(bottom: 7),
               Option(printer, label: 'Install {$appName} Printer'),
               Container(
-                  padding: EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: isDarkTheme
-                        ? Color.fromARGB(135, 87, 87, 90)
-                        : Colors.grey[100],
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.grey),
+                    color: const Color(0xFF1A1719),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFF2E2A2D)),
                   ),
-                  child: Row(
+                  child: const Row(
                     children: [
-                      Icon(Icons.info_outline_rounded, size: 32)
-                          .marginOnly(right: 16),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(translate('agreement_tip'))
-                              .marginOnly(bottom: em),
-                          InkWell(
-                            hoverColor: Colors.transparent,
-                            onTap: () => launchUrlString(
-                                'https://rustdesk.com/privacy.html'),
-                            child: Tooltip(
-                              message: 'https://rustdesk.com/privacy.html',
-                              child: Row(children: [
-                                Icon(Icons.launch_outlined, size: 16)
-                                    .marginOnly(right: 5),
-                                Text(
-                                  translate('End-user license agreement'),
-                                  style: const TextStyle(
-                                      decoration: TextDecoration.underline),
-                                )
-                              ]),
-                            ),
-                          ),
-                        ],
-                      )
+                      Icon(Icons.info_outline_rounded,
+                          size: 22, color: Color(0xFFF28C6B)),
+                      SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          '安装后，本机会在后台运行，可以被同一账号的设备远程控制；'
+                          '有人连入时屏幕右下角会提示，可随时断开。'
+                          'OpenDesk 基于开源项目 RustDesk 构建，按 AGPL-3.0 许可发布。',
+                          style: TextStyle(
+                              fontSize: 12.5,
+                              height: 1.6,
+                              color: Color(0xFFB3A9A3)),
+                        ),
+                      ),
                     ],
                   )).marginSymmetric(vertical: 2 * em),
               Row(
@@ -272,9 +266,14 @@ class _InstallPageBodyState extends State<_InstallPageBody>
                   Obx(
                     () => ElevatedButton.icon(
                       icon: Icon(Icons.done_rounded, size: 16),
-                      label: Text(translate('Accept and Install')),
+                      label: const Text('同意并安装'),
                       onPressed: btnEnabled.value ? install : null,
-                      style: buttonStyle,
+                      style: buttonStyle.copyWith(
+                        backgroundColor: const MaterialStatePropertyAll(
+                            Color(0xFFF28C6B)),
+                        foregroundColor: const MaterialStatePropertyAll(
+                            Color(0xFF1A1214)),
+                      ),
                     ),
                   ),
                   Offstage(
