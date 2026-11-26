@@ -1874,7 +1874,15 @@ class _DisplayMenuState extends State<_DisplayMenu> {
                         ffi: ffi),
                   ]),
           if (isDefault)
-            group('鼠标', Icons.mouse_outlined, (_) => [cursorToggles()]),
+            // YC: keyboard and mouse together, as UU's 外设.
+            group(
+                '外设',
+                Icons.keyboard_alt_outlined,
+                (_) => [
+                      _KeyboardMenu(id: widget.id, ffi: widget.ffi),
+                      Divider(),
+                      cursorToggles(),
+                    ]),
           group('安全与更多', Icons.shield_outlined, (state) {
             final all = menuChildrenGetter(state);
             return all.sublist(all.indexWhere((w) => w is Divider) + 1);
@@ -3496,8 +3504,7 @@ List<Widget> _controlCenterItems(String id, FFI ffi, ToolbarState state,
     [
       _DisplayMenu(
           id: id, ffi: ffi, state: state, setFullscreen: setFullscreen),
-      // Do not show keyboard for camera connection type.
-      if (ffi.connType == ConnType.defaultConn) _KeyboardMenu(id: id, ffi: ffi),
+      // The keyboard lives under 外设 in the display menu; camera sessions have none.
       _ControlMenu(id: id, ffi: ffi, state: state),
       _ChatMenu(id: id, ffi: ffi),
       if (!isWeb) _VoiceCallMenu(id: id, ffi: ffi),
