@@ -1305,13 +1305,42 @@ void msgBox(SessionID sessionId, String type, String title, String text,
   dialogManager.show(
     (setState, close, context) => CustomAlertDialog(
       title: null,
-      content: SelectionArea(child: msgboxContent(type, title, text)),
+      content: SelectionArea(
+          child: msgboxContent(type, title, ycFriendlyError(type, text))),
       actions: buttons,
       onSubmit: hasOk ? submit : null,
       onCancel: hasCancel == true ? cancel : null,
     ),
     tag: '$sessionId-$type-$title-$text-$link',
   );
+}
+
+/// YC: the core reports network failures in its own terms; say what happened and what to do.
+/// The original text stays on a second line so it can still be reported.
+String ycFriendlyError(String type, String text) {
+  if (!type.contains('error')) return text;
+  final t = text.toLowerCase();
+  String? plain;
+  if (t.contains('deadline has elapsed') ||
+      t.contains('timeout') ||
+      t.contains('timed out')) {
+    plain = '连接超时：对方电脑没有回应。请确认它已开机联网、OpenDesk 正在运行，稍后再试。';
+  } else if (t.contains('relay')) {
+    plain = '中转服务器暂时连不上。请稍后再试；一直这样的话，请联系管理员检查服务器。';
+  } else if (t.contains('id does not exist') || t.contains('not exist')) {
+    plain = '找不到这台设备，它可能已被移出账号或换了设备码。';
+  } else if (t.contains('offline')) {
+    plain = '对方电脑现在离线，上线后再试。';
+  } else if (t.contains('wrong password') || t.contains('password')) {
+    plain = '免密进入失败：这台电脑可能重新登录过账号。请在它上面打开 OpenDesk，等几秒后再试。';
+  } else if (t.contains('reset') ||
+      t.contains('broken pipe') ||
+      t.contains('closed')) {
+    plain = '连接被中断了，可以点“重新连接”。';
+  } else if (t.contains('rendezvous') || t.contains('failed to connect')) {
+    plain = '连不上 OpenDesk 服务器。请检查本机网络；网络正常的话，请联系管理员。';
+  }
+  return plain == null ? text : '$plain\n（$text）';
 }
 
 Color? _msgboxColor(String type) {
